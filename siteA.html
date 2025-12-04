@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A 網站 - AI 人物封測與調校工具</title>
+    <style>
+        /* 基礎佈局與樣式 */
+        body { font-family: "Microsoft JhengHei", Arial, sans-serif; display: flex; max-width: 1200px; margin: 0 auto; padding: 20px; background-color: #f0f2f5; }
+        #prompt-panel { 
+            width: 30%; 
+            padding: 20px; 
+            background-color: #ffffff; 
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            margin-right: 20px;
+        }
+        #chat-panel { 
+            width: 70%; 
+            padding: 20px; 
+            background-color: #ffffff; 
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        #chat-window { 
+            height: 400px; 
+            border: 1px solid #ddd; 
+            overflow-y: scroll; 
+            padding: 10px; 
+            margin-bottom: 10px; 
+            background-color: #f9f9f9; 
+            border-radius: 4px;
+        }
+        .message { 
+            margin-bottom: 12px; 
+            padding: 8px 12px; 
+            border-radius: 8px;
+            max-width: 80%;
+        }
+        .user { 
+            text-align: right; 
+            background-color: #e0f7fa; 
+            color: #00796b; 
+            margin-left: auto;
+        }
+        .assistant { 
+            text-align: left; 
+            background-color: #fff3e0; 
+            color: #ff9800; 
+            margin-right: auto;
+        }
+        textarea { 
+            width: 100%; 
+            padding: 10px; 
+            box-sizing: border-box; 
+            resize: vertical; 
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button { 
+            padding: 10px 15px; 
+            cursor: pointer; 
+            border: none; 
+            border-radius: 5px; 
+            background-color: #4CAF50; 
+            color: white; 
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+        button:hover { background-color: #45a049; }
+        #prompt-save-btn { background-color: #2196F3; }
+        #prompt-save-btn:hover { background-color: #1e87e5; }
+    </style>
+</head>
+<body>
+
+    <!-- 提示詞調校面板 (A 網站獨有) -->
+    <div id="prompt-panel">
+        <h2>💊 提示詞管理 (A 網站專用)</h2>
+        <textarea id="prompt-input" rows="15" placeholder="在此貼上您的完整的系統提示詞文本。確保與 KV 中的內容一致。若要修改人設，請貼上新的內容並保存。"></textarea>
+        <button id="prompt-save-btn" onclick="savePrompt()">💾 保存/更新提示詞</button>
+        <p id="prompt-status" style="color: red; margin-top: 10px; font-weight: bold;"></p>
+        <p style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; font-size: 0.9em; color: #666;">
+            注意：保存後，所有用戶的對話將會使用新的人設。
+        </p>
+    </div>
+
+    <!-- 聊天面板 -->
+    <div id="chat-panel">
+        <h2>💬 與 AI 人物林醫師對話</h2>
+        <div id="chat-window"></div>
+        <textarea id="user-input" rows="3" placeholder="在此輸入您的問題..." onkeydown="if(event.key === 'Enter' && !event.shiftKey) { sendMessage(); event.preventDefault(); }"></textarea>
+        <button onclick="sendMessage()">發送訊息</button>
+        <button onclick="resetChat()" style="background-color: #f44336;">重置對話</button>
+    </div>
+
+    <script>
+        // 🚨 這是您的 Worker 基礎 URL，請再次確認其正確性。
+        const WORKER_URL = "https://history-agent.idcllab702.workers.dev";
+        const CHAT_ENDPOINT = `${WORKER_URL}/api/chat`;
+        const ADMIN_ENDPOINT = `${WORKER_URL}/api/admin/prompt`;
+
+        let conversationHistory = []; // 用於儲存對話歷史
+
+        // --- 核心聊天功能 ---
+
+        /** 顯示訊息到聊天窗口 */
+        function displayMessage(role, content) {
+            const chatWindow = document.getElementById('chat-window');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${role}`;
+            msgDiv.innerHTML = `<strong>${role === 'user' ? '您' : '林醫師'}：</strong> ${content.replace(/\n/g, '<br>')}`;
+            chatWindow.appendChild(msgDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight; // 滾動到底部
+        }
+
+        /** 發送訊息並呼叫 Worker API */
+        async function sendMessage() {
+            const userInput = document.getElementById('user-input');
+            const userContent = userInput.value.trim();
+            if (!userContent) return;
+
+            // 1. 在介面和歷史記錄中新增使用者訊息
+            displayMessage('user', userContent);
+            conversationHistory.push({ role: "user", content: userContent });
+            userInput.value = '';
+
+            // 2. 構造請求體 (包含完整歷史)
+            const payload = {
+                messages: conversationHistory
+            };
+
+            try {
+                // *** 額外檢查點：確認開始發送請求 ***
+                console.log(`[${new Date().toLocaleTimeString('zh-TW')}] 嘗試 POST 請求至：${CHAT_ENDPOINT}`);
+
+                // 3. 發送請求到 Worker API
+                const response = await fetch(CHAT_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const assistantResponse = data.response;
+                    // 4. 在介面和歷史記錄中新增 AI 訊息
+                    displayMessage('assistant', assistantResponse);
+                    conversationHistory.push({ role: "assistant", content: assistantResponse });
+                } else {
+                    // 如果 Worker 報錯 (例如 500)，會在這裡顯示
+                    displayMessage('assistant', `[Worker 錯誤: ${data.error || data.details || '未知錯誤'}]`);
+                }
+
+            } catch (error) {
+                // 如果是網路層錯誤 (如 CORS 或連線失敗)
+                console.error("Fetch 錯誤:", error);
+                
+                // *** 修正後的錯誤訊息，強調伺服器端 CORS 問題 ***
+                displayMessage('assistant', 
+                    `[網路錯誤：無法連線或 CORS 錯誤。請確認您的 Cloudflare Worker 已部署正確的 CORS 處理邏輯 (handleOptions 函數)。]`);
+            }
+        }
+
+        /** 清除對話歷史 */
+        function resetChat() {
+            conversationHistory = [];
+            document.getElementById('chat-window').innerHTML = '';
+            alert("對話歷史已重置。");
+        }
+
+        // --- 提示詞管理功能 (A 網站獨有) ---
+
+        /** 呼叫 Admin 接口，保存新的系統提示詞到 KV */
+        async function savePrompt() {
+            const promptInput = document.getElementById('prompt-input');
+            const newPrompt = promptInput.value.trim();
+            const statusElement = document.getElementById('prompt-status');
+
+            if (!newPrompt) {
+                statusElement.textContent = "提示詞內容不能為空！";
+                return;
+            }
+
+            statusElement.textContent = "正在保存...";
+            statusElement.style.color = '#FFA500'; // 橙色表示等待
+            
+            try {
+                const response = await fetch(ADMIN_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ newPrompt: newPrompt })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    statusElement.textContent = `✅ 提示詞保存成功！時間: ${new Date().toLocaleTimeString('zh-TW')}`;
+                    statusElement.style.color = 'green';
+                    resetChat(); // 建議重置對話以使用新提示詞
+                } else {
+                    statusElement.textContent = `❌ 保存失敗: ${data.details || data.message || '未知錯誤'}`;
+                    statusElement.style.color = 'red';
+                }
+
+            } catch (error) {
+                statusElement.textContent = `❌ 網路錯誤：無法連線到 Worker。`;
+                statusElement.style.color = 'red';
+            }
+        }
+    </script>
+</body>
+</html>

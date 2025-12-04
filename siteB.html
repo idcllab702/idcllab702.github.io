@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B 網站 - 與林醫師對話</title>
+    <style>
+        /* 基礎佈局與樣式 */
+        body { 
+            font-family: "Microsoft JhengHei", Arial, sans-serif; 
+            display: flex; 
+            justify-content: center; /* 居中 */
+            align-items: flex-start; 
+            min-height: 100vh;
+            margin: 0; 
+            padding: 20px; 
+            background-color: #e6eef5; 
+        }
+        #chat-panel { 
+            width: 100%; 
+            max-width: 800px; /* 設置最大寬度 */
+            padding: 25px; 
+            background-color: #ffffff; 
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+            border-radius: 12px;
+            box-sizing: border-box;
+        }
+        h2 {
+            color: #004d40;
+            border-bottom: 2px solid #e0f7fa;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        #chat-window { 
+            height: 500px; /* 增加聊天視窗高度 */
+            border: 1px solid #b2ebf2; 
+            overflow-y: scroll; 
+            padding: 15px; 
+            margin-bottom: 15px; 
+            background-color: #f9feff; 
+            border-radius: 8px;
+        }
+        .message { 
+            margin-bottom: 15px; 
+            padding: 10px 15px; 
+            border-radius: 10px;
+            max-width: 85%;
+            word-wrap: break-word; /* 防止長單詞溢出 */
+        }
+        .user { 
+            text-align: right; 
+            background-color: #e0f7fa; 
+            color: #004d40; 
+            margin-left: auto;
+            border-bottom-right-radius: 2px;
+        }
+        .assistant { 
+            text-align: left; 
+            background-color: #fce4ec; 
+            color: #880e4f; 
+            margin-right: auto;
+            border-bottom-left-radius: 2px;
+        }
+        textarea { 
+            width: 100%; 
+            padding: 12px; 
+            box-sizing: border-box; 
+            resize: vertical; 
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        button { 
+            padding: 12px 20px; 
+            cursor: pointer; 
+            border: none; 
+            border-radius: 6px; 
+            transition: background-color 0.3s, transform 0.1s;
+            flex-grow: 1;
+        }
+        #send-btn { 
+            background-color: #4CAF50; 
+            color: white; 
+        }
+        #send-btn:hover { background-color: #45a049; transform: translateY(-1px); }
+        #reset-btn { 
+            background-color: #f44336;
+            color: white; 
+            flex-grow: 0.2;
+        }
+        #reset-btn:hover { background-color: #d32f2f; transform: translateY(-1px); }
+    </style>
+</head>
+<body>
+
+    <!-- 聊天面板 -->
+    <div id="chat-panel">
+        <h2>💬 與 AI 人物林醫師對話</h2>
+        <div id="chat-window"></div>
+        
+        <!-- 輸入區和按鈕 -->
+        <textarea id="user-input" rows="3" placeholder="在此輸入您的問題..." 
+                  onkeydown="if(event.key === 'Enter' && !event.shiftKey) { sendMessage(); event.preventDefault(); }"></textarea>
+        
+        <div class="button-group">
+            <button id="send-btn" onclick="sendMessage()">發送訊息</button>
+            <button id="reset-btn" onclick="resetChat()">重置對話</button>
+        </div>
+    </div>
+
+    <script>
+        // 🚨 這是您的 Worker 基礎 URL，請再次確認其正確性。
+        const WORKER_URL = "https://history-agent.idcllab702.workers.dev";
+        const CHAT_ENDPOINT = `${WORKER_URL}/api/chat`;
+
+        let conversationHistory = []; // 用於儲存對話歷史
+
+        /** 顯示訊息到聊天窗口 */
+        function displayMessage(role, content) {
+            const chatWindow = document.getElementById('chat-window');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${role}`;
+            msgDiv.innerHTML = `<strong>${role === 'user' ? '您' : '林醫師'}：</strong> ${content.replace(/\n/g, '<br>')}`;
+            chatWindow.appendChild(msgDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight; // 滾動到底部
+        }
+
+        /** 發送訊息並呼叫 Worker API */
+        async function sendMessage() {
+            const userInput = document.getElementById('user-input');
+            const userContent = userInput.value.trim();
+            if (!userContent) return;
+
+            // 禁用按鈕，防止重複提交
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = '發送中...';
+
+            // 1. 在介面和歷史記錄中新增使用者訊息
+            displayMessage('user', userContent);
+            conversationHistory.push({ role: "user", content: userContent });
+            userInput.value = '';
+
+            // 2. 構造請求體 (包含完整歷史)
+            const payload = {
+                messages: conversationHistory
+            };
+
+            try {
+                // 3. 發送請求到 Worker API
+                const response = await fetch(CHAT_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const assistantResponse = data.response;
+                    // 4. 在介面和歷史記錄中新增 AI 訊息
+                    displayMessage('assistant', assistantResponse);
+                    conversationHistory.push({ role: "assistant", content: assistantResponse });
+                } else {
+                    // 如果 Worker 報錯 (例如 500)，會在這裡顯示
+                    const details = data.details || data.error || '未知 Worker 錯誤';
+                    displayMessage('assistant', `[Worker 錯誤: ${response.status} - ${details}]`);
+                }
+
+            } catch (error) {
+                // 如果是網路層錯誤 (如連線失敗)
+                console.error("Fetch 錯誤:", error);
+                displayMessage('assistant', 
+                    `[網路錯誤：無法連線到伺服器。請檢查網路或後端 Worker 是否運行正常。]`);
+            } finally {
+                // 無論成功或失敗，最後都要啟用按鈕
+                sendBtn.disabled = false;
+                sendBtn.textContent = '發送訊息';
+            }
+        }
+
+        /** 清除對話歷史 */
+        function resetChat() {
+            conversationHistory = [];
+            document.getElementById('chat-window').innerHTML = '';
+            // 使用更友好的介面通知
+            displayMessage('system', "對話歷史已清除。您可以開始一段新的對話了！");
+        }
+        
+        // 頁面加載時顯示歡迎訊息
+        window.onload = () => {
+             displayMessage('system', "您好！我是林醫師，請問有什麼我可以幫助您的嗎？");
+        };
+    </script>
+</body>
+</html>
