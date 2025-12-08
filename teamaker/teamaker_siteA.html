@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A 網站 - AI 人物封測與調校工具</title>
+    <style>
+        /* 基礎佈局與樣式 (使用 Tailwind 風格優化可讀性) */
+        body { 
+            font-family: "Microsoft JhengHei", Arial, sans-serif; 
+            display: flex; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #f0f2f5; 
+        }
+        #prompt-panel { 
+            width: 35%; /* 稍微加寬以容納更多控制項 */
+            padding: 20px; 
+            background-color: #ffffff; 
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            margin-right: 20px;
+        }
+        #chat-panel { 
+            width: 65%; 
+            padding: 20px; 
+            background-color: #ffffff; 
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+        }
+        #chat-window { 
+            height: 400px; 
+            border: 1px solid #e0e0e0; 
+            overflow-y: scroll; 
+            padding: 15px; 
+            margin-bottom: 15px; 
+            background-color: #fafafa; 
+            border-radius: 8px;
+        }
+        .message { 
+            margin-bottom: 15px; 
+            padding: 10px 15px; 
+            border-radius: 15px;
+            max-width: 85%;
+        }
+        .user { 
+            text-align: right; 
+            background-color: #bbdefb; /* 淺藍色 */
+            color: #0d47a1; 
+            margin-left: auto;
+        }
+        .assistant { 
+            text-align: left; 
+            background-color: #fce4ec; /* 淺粉色 */
+            color: #ad1457; 
+            margin-right: auto;
+        }
+        textarea, select { 
+            width: 100%; 
+            padding: 12px; 
+            box-sizing: border-box; 
+            resize: vertical; 
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+        button { 
+            padding: 10px 15px; 
+            cursor: pointer; 
+            border: none; 
+            border-radius: 6px; 
+            color: white; 
+            margin-top: 5px;
+            margin-right: 10px;
+            transition: background-color 0.3s, opacity 0.3s;
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        #prompt-load-btn { background-color: #00bcd4; } /* 青色 */
+        #prompt-load-btn:hover:not(:disabled) { background-color: #0097a7; }
+        #prompt-save-btn { background-color: #2196F3; } /* 藍色 */
+        #prompt-save-btn:hover:not(:disabled) { background-color: #1e87e5; }
+        .chat-btn-group button:last-child { background-color: #f44336; }
+        .chat-btn-group button:last-child:hover:not(:disabled) { background-color: #d32f2f; }
+
+        .persona-label, .prompt-desc {
+            font-weight: bold;
+            margin-top: 15px;
+            display: block;
+            color: #333;
+        }
+        .prompt-desc {
+            font-size: 0.9em;
+            font-weight: normal;
+            margin-top: 5px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            border-left: 3px solid #ccc;
+        }
+        #prompt-status {
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 提示詞調校面板 (A 網站獨有) -->
+    <div id="prompt-panel">
+        <h2>💊 提示詞管理 (A 網站專用)</h2>
+        
+        <label for="persona-id-select" class="persona-label">👤 選擇 AI 人物 (KV Key):</label>
+        <!-- 下拉選單替換 -->
+        <select id="persona-id-select" onchange="updateNotesAndTitle(this.value); resetChat();">
+            <option value="teamaker" selected>teamaker</option>
+            <option value="system_prompt_history_person">system_prompt_history_person</option>
+        </select>
+        
+        <p class="prompt-desc" id="persona-notes"></p>
+
+        <label for="prompt-input" class="persona-label" style="margin-top: 10px;">📜 系統提示詞內容:</label>
+        <textarea id="prompt-input" rows="15" placeholder="請先點擊「讀取目前提示詞」按鈕載入內容。此處顯示的是當前人物在 KV 中的提示詞。"></textarea>
+
+        <!-- 新增讀取按鈕 -->
+        <button id="prompt-load-btn" onclick="loadPrompt()">🔄 讀取目前提示詞</button>
+        <button id="prompt-save-btn" onclick="savePrompt()" disabled>💾 保存/更新提示詞</button>
+        
+        <p id="prompt-status" style="color: red; margin-top: 10px; font-weight: bold;">請先選擇人物並載入提示詞。</p>
+        
+        <p style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; font-size: 0.9em; color: #666;">
+            注意：保存成功後，對話歷史會自動重置，以便使用新的提示詞進行測試。
+        </p>
+    </div>
+
+    <!-- 聊天面板 -->
+    <div id="chat-panel">
+        <h2 id="chat-title">💬 與 AI 人物 對話</h2>
+        <div id="chat-window"></div>
+        <textarea id="user-input" rows="3" placeholder="在此輸入您的問題..." onkeydown="if(event.key === 'Enter' && !event.shiftKey) { sendMessage(); event.preventDefault(); }"></textarea>
+        <div class="chat-btn-group">
+            <button onclick="sendMessage()">發送訊息</button>
+            <button onclick="resetChat()">重置對話</button>
+        </div>
+        <!-- 用於顯示重置成功的訊息 -->
+        <p id="reset-status" style="color: green; margin-top: 10px; font-weight: bold;"></p>
+    </div>
+
+    <script>
+        // 🚨 這是您的 Worker 基礎 URL，請再次確認其正確性。
+        const WORKER_URL = "https://history-agent.idcllab702.workers.dev";
+        let conversationHistory = []; // 用於儲存對話歷史
+
+        const personaDescriptions = {
+            teamaker: "teamaker 是台灣製茶人。",
+            system_prompt_history_person: "這是測試用人物，用於快速驗證 Worker 連線。"
+        };
+
+        // --- 輔助函數 ---
+
+        /** 取得目前選擇的人物 ID */
+        function getPersonaId() {
+            return document.getElementById('persona-id-select').value.trim();
+        }
+
+        /** 獲取聊天 API URL */
+        function getChatEndpoint(personaId) {
+            return `${WORKER_URL}/api/chat/${personaId}`;
+        }
+
+        /** 獲取管理 API URL (讀取或保存都使用此 URL) */
+        function getAdminEndpoint(personaId) {
+            return `${WORKER_URL}/api/admin/prompt/${personaId}`;
+        }
+
+        /** 更新聊天窗口的標題和備註 */
+        function updateNotesAndTitle(personaId) {
+            document.getElementById('chat-title').textContent = `💬 與 AI 人物 ${personaId} 對話`;
+            document.getElementById('persona-notes').textContent = personaDescriptions[personaId] || "無相關備註。";
+        }
+
+        /** 更新按鈕狀態 */
+        function updatePromptButtonState(canSave) {
+            document.getElementById('prompt-save-btn').disabled = !canSave;
+            document.getElementById('prompt-load-btn').disabled = false;
+        }
+
+        // --- 核心功能：讀取 KV 提示詞 ---
+
+        async function loadPrompt() {
+            const personaId = getPersonaId();
+            const statusElement = document.getElementById('prompt-status');
+            const promptInput = document.getElementById('prompt-input');
+            const loadBtn = document.getElementById('prompt-load-btn');
+
+            loadBtn.disabled = true;
+            statusElement.textContent = `正在讀取人物 ${personaId} 的提示詞...`;
+            statusElement.style.color = '#FFA500'; // 橙色表示等待
+
+            try {
+                const endpointUrl = getAdminEndpoint(personaId);
+                const response = await fetch(endpointUrl, {
+                    method: 'GET', // 這裡必須是 GET 請求
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                let data;
+                
+                if (response.ok) {
+                    // 成功時，嘗試解析 JSON
+                    try {
+                        data = await response.json();
+                    } catch (e) {
+                        // 處理 Worker 成功返回但內容不是 JSON 的邊緣情況
+                        throw new Error("Worker 成功回應，但內容無法解析為 JSON。");
+                    }
+                    
+                    // 假設成功時，Worker 返回的 JSON 結構中包含 prompt 字段
+                    const systemPrompt = data.prompt || data.response; 
+
+                    if (systemPrompt) {
+                        promptInput.value = systemPrompt;
+                        statusElement.textContent = `✅ 提示詞讀取成功！時間: ${new Date().toLocaleTimeString('zh-TW')}。現在可以修改並保存。`;
+                        statusElement.style.color = 'green';
+                        updatePromptButtonState(true); // 啟用保存按鈕
+                    } else {
+                        throw new Error("Worker 返回的資料結構中缺少提示詞內容 (prompt/response 字段)。");
+                    }
+                } else {
+                    // 失敗時，讀取錯誤文本以獲得詳細資訊
+                    const errorText = await response.text();
+                    // 拋出更具體、有助於 Worker 除錯的錯誤
+                    // *** 修正：在錯誤訊息中明確包含請求的 URL ***
+                    throw new Error(`Worker 錯誤 (${response.status} ${response.statusText}): 請求 URL: ${endpointUrl}。伺服器回應: ${errorText.substring(0, 100)}... (請確認 Worker 已實作 GET 請求)`);
+                }
+            } catch (error) {
+                console.error("Load Prompt Error:", error);
+                // 顯示從 Worker 取得的詳細錯誤訊息
+                statusElement.textContent = `❌ 讀取失敗: ${error.message}`;
+                statusElement.style.color = 'red';
+                promptInput.value = ""; // 清空輸入框
+                updatePromptButtonState(false); // 禁用保存按鈕
+            } finally {
+                loadBtn.disabled = false;
+            }
+        }
+
+
+        // --- 提示詞管理功能 (保存) ---
+
+        async function savePrompt() {
+            const promptInput = document.getElementById('prompt-input');
+            const newPrompt = promptInput.value.trim();
+            const statusElement = document.getElementById('prompt-status');
+            
+            const personaId = getPersonaId();
+            const adminEndpoint = getAdminEndpoint(personaId); 
+
+            if (!newPrompt) {
+                statusElement.textContent = "提示詞內容不能為空！";
+                return;
+            }
+
+            statusElement.textContent = "正在保存...";
+            statusElement.style.color = '#FFA500'; 
+            
+            try {
+                const response = await fetch(adminEndpoint, {
+                    method: 'POST', // 保存使用 POST 請求
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ newPrompt: newPrompt })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    statusElement.textContent = `✅ 提示詞保存成功！人物 ID: ${personaId}。時間: ${new Date().toLocaleTimeString('zh-TW')}`;
+                    statusElement.style.color = 'green';
+                    resetChat(); // 建議重置對話以使用新提示詞
+                } else {
+                    statusElement.textContent = `❌ 保存失敗: ${data.details || data.message || '未知錯誤'}`;
+                    statusElement.style.color = 'red';
+                }
+
+            } catch (error) {
+                statusElement.textContent = `❌ 網路錯誤：無法連線到 Worker Admin 接口。`;
+                statusElement.style.color = 'red';
+            }
+        }
+
+        // --- 聊天功能 ---
+
+        /** 顯示訊息到聊天窗口 */
+        function displayMessage(role, content) {
+            const chatWindow = document.getElementById('chat-window');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${role}`;
+            
+            // 根據角色顯示不同的名稱
+            let speakerName = role === 'user' ? '您' : getPersonaId();
+            
+            msgDiv.innerHTML = `<strong>${speakerName}：</strong> ${content.replace(/\n/g, '<br>')}`;
+            chatWindow.appendChild(msgDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight; // 滾動到底部
+        }
+
+        /** 發送訊息並呼叫 Worker API */
+        async function sendMessage() {
+            const userInput = document.getElementById('user-input');
+            const userContent = userInput.value.trim();
+            if (!userContent) return;
+
+            const personaId = getPersonaId();
+            const chatEndpoint = getChatEndpoint(personaId);
+
+            displayMessage('user', userContent);
+            conversationHistory.push({ role: "user", content: userContent });
+            userInput.value = '';
+
+            const payload = { messages: conversationHistory };
+
+            try {
+                const response = await fetch(chatEndpoint, { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const assistantResponse = data.response;
+                    displayMessage('assistant', assistantResponse);
+                    conversationHistory.push({ role: "assistant", content: assistantResponse });
+                } else {
+                    displayMessage('assistant', `[Worker 錯誤 (${response.status}): ${data.error || data.details || '未知錯誤'}]`);
+                }
+
+            } catch (error) {
+                console.error("Fetch 錯誤:", error);
+                displayMessage('assistant', 
+                    `[網路錯誤：無法連線。請確認 Worker URL: ${chatEndpoint} 正確且 Worker 已部署。]`);
+            }
+        }
+
+        /** 清除對話歷史 */
+        function resetChat() {
+            conversationHistory = [];
+            document.getElementById('chat-window').innerHTML = '';
+            
+            const resetStatus = document.getElementById('reset-status');
+            resetStatus.textContent = "✅ 對話歷史已重置！您可以開始新對話。";
+            
+            setTimeout(() => { resetStatus.textContent = ''; }, 3000);
+        }
+
+        // --- 初始化 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const initialId = getPersonaId();
+            updateNotesAndTitle(initialId);
+            // 確保一開始保存按鈕是禁用的
+            document.getElementById('prompt-save-btn').disabled = true;
+        });
+    </script>
+</body>
+</html>
