@@ -120,7 +120,14 @@
             <option value="system_prompt_history_person">system_prompt_history_person</option>
         </select>
         
-        <p class="prompt-desc" id="persona-notes"></p>
+        <p class="prompt-desc" id="persona-notes">teamaker是台灣製茶人。</p>
+		<p><a href="AImodel.html">AI模型表</a></p>
+		
+        <!-- === 新增 AI 服務模型名稱欄位 START === -->
+        <label for="model-input" class="persona-label" style="margin-top: 10px;">🤖 AI 服務模型名稱:</label>
+        <input type="text" id="model-input" value="@cf/google/gemma-3-12b-it" 
+               placeholder="請輸入 Workers AI 模型名稱，例如 @cf/meta/llama-3-8b-instruct">
+        <!-- === 新增 AI 服務模型名稱欄位 END === -->		
 
         <label for="prompt-input" class="persona-label" style="margin-top: 10px;">📜 系統提示詞內容:</label>
         <textarea id="prompt-input" rows="15" placeholder="請先點擊「讀取目前提示詞」按鈕載入內容。此處顯示的是當前人物在 KV 中的提示詞。"></textarea>
@@ -148,6 +155,8 @@
         <!-- 用於顯示重置成功的訊息 -->
         <p id="reset-status" style="color: green; margin-top: 10px; font-weight: bold;"></p>
     </div>
+	
+	
 
     <script>
         // 🚨 這是您的 Worker 基礎 URL，請再次確認其正確性。
@@ -155,7 +164,7 @@
         let conversationHistory = []; // 用於儲存對話歷史
 
         const personaDescriptions = {
-            teamaker: "teamaker 是台灣製茶人。",
+            teamaker: "teamaker是台灣製茶人",
             system_prompt_history_person: "這是測試用人物，用於快速驗證 Worker 連線。"
         };
 
@@ -310,7 +319,11 @@
         /** 發送訊息並呼叫 Worker API */
         async function sendMessage() {
             const userInput = document.getElementById('user-input');
+			const modelInput = document.getElementById('model-input'); // 取得新的模型輸入
+			
             const userContent = userInput.value.trim();
+            const customModelName = modelInput.value.trim(); // 取得模型名稱
+			
             if (!userContent) return;
 
             const personaId = getPersonaId();
