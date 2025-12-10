@@ -116,13 +116,21 @@
         <label for="persona-id-select" class="persona-label">👤 選擇 AI 人物 (KV Key):</label>
         <!-- 下拉選單替換 -->
         <select id="persona-id-select" onchange="updateNotesAndTitle(this.value); resetChat();">
-            <option value="doctor_lin" selected>doctor_lin</option>
+            <option value="doctor_ikeshima" selected>doctor_ikeshima</option>
+			<!--<option value="doctor_lin" selected>doctor_lin</option>
             <option value="doctor_wu">doctor_wu</option>
-            <option value="doctor_hsu">doctor_hsu</option>
+            <option value="doctor_hsu">doctor_hsu</option>-->
             <option value="system_prompt_history_person">system_prompt_history_person</option>
         </select>
         
-        <p class="prompt-desc" id="persona-notes"></p>
+        <p class="prompt-desc" id="persona-notes">doctor_ikeshima是池島（陳纂地）醫生。</p>
+		<p><a href="AImodel.html">AI模型表</a></p>
+		
+        <!-- === 新增 AI 服務模型名稱欄位 START === -->
+        <label for="model-input" class="persona-label" style="margin-top: 10px;">🤖 AI 服務模型名稱:</label>
+        <input type="text" id="model-input" value="@cf/google/gemma-3-12b-it" 
+               placeholder="請輸入 Workers AI 模型名稱，例如 @cf/meta/llama-3-8b-instruct">
+        <!-- === 新增 AI 服務模型名稱欄位 END === -->		
 
         <label for="prompt-input" class="persona-label" style="margin-top: 10px;">📜 系統提示詞內容:</label>
         <textarea id="prompt-input" rows="15" placeholder="請先點擊「讀取目前提示詞」按鈕載入內容。此處顯示的是當前人物在 KV 中的提示詞。"></textarea>
@@ -140,7 +148,7 @@
 
     <!-- 聊天面板 -->
     <div id="chat-panel">
-        <h2 id="chat-title">💬 與 AI 人物 doctor_lin 對話</h2>
+        <h2 id="chat-title">💬 與 AI 人物 對話</h2>
         <div id="chat-window"></div>
         <textarea id="user-input" rows="3" placeholder="在此輸入您的問題..." onkeydown="if(event.key === 'Enter' && !event.shiftKey) { sendMessage(); event.preventDefault(); }"></textarea>
         <div class="chat-btn-group">
@@ -150,6 +158,8 @@
         <!-- 用於顯示重置成功的訊息 -->
         <p id="reset-status" style="color: green; margin-top: 10px; font-weight: bold;"></p>
     </div>
+	
+	
 
     <script>
         // 🚨 這是您的 Worker 基礎 URL，請再次確認其正確性。
@@ -157,9 +167,10 @@
         let conversationHistory = []; // 用於儲存對話歷史
 
         const personaDescriptions = {
-            doctor_wu: "doctor_wu 是神靖丸倖存者吳平城醫生。",
-            doctor_hsu: "doctor_hsu 是鹿港長源醫院許讀醫生。",
-            doctor_lin: "doctor_lin 是霧峰民生診所林鵬飛醫生。",
+            doctor_ikeshima: "doctor_ikeshima是神靖丸的班長池島醫生",
+			//doctor_wu: "doctor_wu 是神靖丸倖存者吳平城醫生。",
+            //doctor_hsu: "doctor_hsu 是鹿港長源醫院許讀醫生。",
+            //doctor_lin: "doctor_lin 是霧峰民生診所林鵬飛醫生。",
             system_prompt_history_person: "這是測試用人物，用於快速驗證 Worker 連線。"
         };
 
@@ -314,7 +325,11 @@
         /** 發送訊息並呼叫 Worker API */
         async function sendMessage() {
             const userInput = document.getElementById('user-input');
+			const modelInput = document.getElementById('model-input'); // 取得新的模型輸入
+			
             const userContent = userInput.value.trim();
+            const customModelName = modelInput.value.trim(); // 取得模型名稱
+			
             if (!userContent) return;
 
             const personaId = getPersonaId();
