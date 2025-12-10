@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 模型參考列表</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 設定 Tailwind 樣式，使用 Inter 字體 -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 20px;
+            background-color: #f7f7f7;
+        }
+        /* 基礎表格樣式，移除邊界與色彩 */
+        .simple-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .simple-table th, .simple-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e5e5; /* 只有細細的底線 */
+        }
+        .simple-table th {
+            font-weight: 600;
+            background-color: #f0f0f0; /* 輕微的背景色以區分表頭 */
+        }
+    </style>
+</head>
+<body class="p-4">
+
+    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-sm p-6">
+        <h2 class="text-xl font-semibold mb-4 text-gray-700">封測 AI 模型參考列表 (角色扮演/指令遵循優化)</h2>
+        
+        <table class="simple-table">
+            <thead>
+                <tr>
+                    <th class="text-gray-600">作者 (Author)</th>
+                    <th class="text-gray-600">Cloudflare 提供的 AI 模型 (Model)</th>
+                    <th class="text-gray-600">備註 (Notes)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>OpenAI</td>
+                    <td class="font-mono text-sm">gpt-oss-120b</td>
+                    <td>最高推理能力，適用於生產級別和複雜角色。</td>
+                </tr>
+                <tr>
+                    <td>OpenAI</td>
+                    <td class="font-mono text-sm">gpt-oss-20b</td>
+                    <td>比 120B 輕量，延遲可能較低。</td>
+                </tr>
+                <tr>
+                    <td>Mistral AI</td>
+                    <td class="font-mono text-sm">mistral-small-3.1-24b-instruct</td>
+                    <td>高性能，對話與指令遵循能力強。</td>
+                </tr>
+                <tr>
+                    <td>Mistral</td>
+                    <td class="font-mono text-sm">mistral-7b-instruct-v0.2</td>
+                    <td>高效能的 7B 模型，適合高頻率的場景。</td>
+                </tr>
+                <tr>
+                    <td>Meta</td>
+                    <td class="font-mono text-sm">llama-3.3-70b-instruct-fp8-fast</td>
+                    <td>最大的 Llama 指令版本，為速度進行了 FP8 優化。</td>
+                </tr>
+                <tr>
+                    <td>Meta</td>
+                    <td class="font-mono text-sm">llama-3-8b-instruct</td>
+                    <td>業界熱門的 8B 模型，通用性高。</td>
+                </tr>
+                <tr>
+                    <td>Google（目前預設）</td>
+                    <td class="font-mono text-sm">gemma-3-12b-it</td>
+                    <td>強大的 Gemma 系列，支援長上下文。</td>
+                </tr>
+                <tr>
+                    <td>Google</td>
+                    <td class="font-mono text-sm">gemma-7b-it</td>
+                    <td>更輕量的 Gemma 版本，速度和效率的良好選擇。</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p class="mt-4 text-xs text-gray-500">提示：請在 Workers 設定中選擇一個模型作為預設值。</p>
+    </div>
+
+</body>
+</html>
