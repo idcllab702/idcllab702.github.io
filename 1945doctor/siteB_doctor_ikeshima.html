@@ -14,6 +14,7 @@
             align-items: flex-start; 
             min-height: 100vh;
             background-color: #transparent; /*網頁背景透明 transparent*/
+			backdrop-filter: blur(5px);
             padding: 20px;
 			/*background-image: url("https://miro.medium.com/v2/resize:fit:1100/format:webp/1*XTGQNLhyU_i5cIaxYEIQ9Q.png");*/
         }
@@ -23,6 +24,7 @@
             max-width: 800px; /* 限制最大寬度 */
             padding: 30px; 
             background-color: transparent; /* 聊天視窗背景透明 */
+			backdrop-filter: blur(5px);
             /*box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15); 陰影角*/
             border-radius: 16px;
         }
@@ -37,11 +39,8 @@
             border-radius: 10px;
         }
         h2 {
-            color: #FFF; /* 標題主題色#1a56db */
+            color: #000; /* 標題主題色#1a56db */
             /*border-bottom: 2px solid #e0e0e0; 下分隔線#e0e0e0*/
-			background-color: rgba(255,255,255,0.2); /* 使用者淺藍色#e3f2fd */
-			backdrop-filter: blur(5px);
-			border-radius: 4px; /* 對話泡泡圓角 */
             padding-bottom: 10px;
             margin-top: 0;
             font-weight: 600;
@@ -55,7 +54,7 @@
         }
         .user { /*使用者泡泡*/
             text-align: right; 
-            background-color: rgba(211,235,255,0.3); /* 使用者淺藍色#e3f2fd */
+            background-color: rgba(0,0,0,0.4); /* 使用者淺藍色#e3f2fd */
 			backdrop-filter: blur(5px);
             color: #FFF; /*文字 #0d47a1*/
             margin-left: auto;
@@ -64,7 +63,7 @@
         }
         .assistant { /*AI泡泡*/
             text-align: left; 
-            background-color: rgba(211,244,211,0.3); /* AI淺綠色#f1f8e9 */
+            background-color: rgba(0,0,0,0.4); /* AI淺綠色#f1f8e9 */
 			backdrop-filter: blur(5px);
             color: #FFF; /*文字#33691e*/
             margin-right: auto;
@@ -74,12 +73,13 @@
         textarea { /*輸入區*/
             width: 100%; 
             padding: 12px; 
-			background-color: rgba(255,255,255, 0.6);
+			background-color: rgba(0,0,0,0.4);
+			color: #FFF;
 			backdrop-filter: blur(5px);
             box-sizing: border-box; 
             resize: none; /* 禁止垂直縮放 */
             border: 3px solid #FFF;
-            border-radius: 8px;
+            /*border-radius: 8px;*/
             margin-bottom: 10px;
             font-size: 1em;
         }
@@ -120,7 +120,7 @@
     <!-- 聊天容器 -->
     <div id="chat-container">
         <!-- AI 人物的名稱會顯示在標題中 -->
-        <h2 id="chat-title">💬 與 江原醫生 對話</h2>
+        <!--<h2 id="chat-title">💬 與 江原醫生 對話</h2>-->
         
         <!-- 對話視窗 -->
         <div id="chat-window"></div>
