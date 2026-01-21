@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- 標題會顯示當前人物名稱 -->
-    <title>池島醫生</title>
+    <title>江原醫生</title>
     <style>
         /* 基礎佈局與樣式 (使用 Tailwind 風格優化可讀性) */
         body { 
@@ -13,29 +13,35 @@
             justify-content: center; /* 居中佈局 */
             align-items: flex-start; 
             min-height: 100vh;
-            background-color: transparent;
+            background-color: #transparent; /*網頁背景透明 transparent*/
             padding: 20px;
+			/*background-image: url("https://miro.medium.com/v2/resize:fit:1100/format:webp/1*XTGQNLhyU_i5cIaxYEIQ9Q.png");*/
         }
-        #chat-container { 
+        #chat-container { /*整個聊天區塊*/
+            width: 100%;
             width: 100%;
             max-width: 800px; /* 限制最大寬度 */
             padding: 30px; 
-            background-color: #ffffff; 
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            background-color: transparent; /* 聊天視窗背景透明 */
+            /*box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15); 陰影角*/
             border-radius: 16px;
         }
-        #chat-window { 
+        #chat-window { /*聊天視窗*/
             height: 300px; /* 增加高度 */
-            border: 1px solid #e0e0e0; 
+            /*border: 3px solid #FFFFFF; 邊框#e0e0e0*/
+			scrollbar-color: white transparent; /*卷軸顏色*/
             overflow-y: scroll; 
             padding: 15px; 
             margin-bottom: 20px; 
-            background-color: #ffffff; /* 輕微的背景色 */
+            background-color: transparent; /* 聊天視窗背景透明 */
             border-radius: 10px;
         }
         h2 {
-            color: #1a56db; /* 主題色 */
-            border-bottom: 2px solid #e0e0e0;
+            color: #FFF; /* 標題主題色#1a56db */
+            /*border-bottom: 2px solid #e0e0e0; 下分隔線#e0e0e0*/
+			background-color: rgba(255,255,255,0.2); /* 使用者淺藍色#e3f2fd */
+			backdrop-filter: blur(5px);
+			border-radius: 4px; /* 對話泡泡圓角 */
             padding-bottom: 10px;
             margin-top: 0;
             font-weight: 600;
@@ -47,26 +53,32 @@
             max-width: 80%;
             line-height: 1.6;
         }
-        .user { 
+        .user { /*使用者泡泡*/
             text-align: right; 
-            background-color: #e3f2fd; /* 淺藍色 */
-            color: #0d47a1; 
+            background-color: rgba(211,235,255,0.3); /* 使用者淺藍色#e3f2fd */
+			backdrop-filter: blur(5px);
+            color: #FFF; /*文字 #0d47a1*/
             margin-left: auto;
-            border-bottom-right-radius: 4px; /* 讓角落更有變化 */
+            border-bottom-right-radius: 4px; /* 對話泡泡圓角 */
+			border: 1px solid #FFF;
         }
-        .assistant { 
+        .assistant { /*AI泡泡*/
             text-align: left; 
-            background-color: #f1f8e9; /* 淺綠色 */
-            color: #33691e; 
+            background-color: rgba(211,244,211,0.3); /* AI淺綠色#f1f8e9 */
+			backdrop-filter: blur(5px);
+            color: #FFF; /*文字#33691e*/
             margin-right: auto;
-            border-bottom-left-radius: 4px;
+            border-bottom-left-radius: 4px;/* 對話泡泡圓角 */
+			border: 1px solid #FFF;
         }
-        textarea { 
+        textarea { /*輸入區*/
             width: 100%; 
             padding: 12px; 
+			background-color: rgba(255,255,255, 0.6);
+			backdrop-filter: blur(5px);
             box-sizing: border-box; 
             resize: none; /* 禁止垂直縮放 */
-            border: 1px solid #ccc;
+            border: 3px solid #FFF;
             border-radius: 8px;
             margin-bottom: 10px;
             font-size: 1em;
@@ -108,7 +120,7 @@
     <!-- 聊天容器 -->
     <div id="chat-container">
         <!-- AI 人物的名稱會顯示在標題中 -->
-        <h2 id="chat-title">💬 與 池島醫生 對話</h2>
+        <h2 id="chat-title">💬 與 江原醫生 對話</h2>
         
         <!-- 對話視窗 -->
         <div id="chat-window"></div>
@@ -138,7 +150,7 @@
 
         // *** 核心修正點 1: 新增人物 ID 與顯示名稱的對照表 ***
         const personaNames = {
-            'doctor_ikeshima': '池島醫生',
+            'doctor_ikeshima': '江原醫生',
 			'doctor_lin': '林鵬飛醫生',
             'doctor_hsu': '許讀醫生',
             'doctor_wu': '吳平城醫生',
@@ -161,7 +173,7 @@
             // *** 核心修正點 2: 根據角色使用正確的名稱 ***
             let speakerName;
             if (role === 'user') {
-                speakerName = '您';
+                speakerName = '';/*使用者名稱 您*/
             } else {
                 // AI (assistant) 使用對照表中的中文名稱，如果找不到則使用 ID (作為備用)
                 speakerName = personaNames[AI_PERSONA_ID] || AI_PERSONA_ID; 
@@ -241,5 +253,3 @@
     </script>
 </body>
 </html>
-
-
