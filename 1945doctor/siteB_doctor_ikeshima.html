@@ -3,85 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- 標題會顯示當前人物名稱 -->
-    <title>江原醫生</title>
+    <title>江原醫生 - 語音模式切換版</title>
     <style>
-        /* 基礎佈局與樣式 (使用 Tailwind 風格優化可讀性) */
+        /* --- 基礎佈局與玻璃擬態樣式 --- */
         body { 
             font-family: "Microsoft JhengHei", Arial, sans-serif; 
             display: flex; 
-            justify-content: center; /* 居中佈局 */
+            justify-content: center; 
             align-items: flex-start; 
             min-height: 100vh;
-            background-color: #transparent; /*網頁背景透明 transparent*/
-			backdrop-filter: blur(5px);
+            background-color: transparent; 
+            backdrop-filter: blur(5px);
             padding: 20px;
-			/*background-image: url("https://miro.medium.com/v2/resize:fit:1100/format:webp/1*XTGQNLhyU_i5cIaxYEIQ9Q.png");*/
+            margin: 0;
         }
-        #chat-container { /*整個聊天區塊*/
+        #chat-container { 
             width: 100%;
-            width: 100%;
-            max-width: 800px; /* 限制最大寬度 */
+            max-width: 800px; 
             padding: 30px; 
-            background-color: transparent; /* 聊天視窗背景透明 */
-			backdrop-filter: blur(5px);
-            /*box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15); 陰影角*/
+            background-color: transparent; 
+            backdrop-filter: blur(5px);
             border-radius: 16px;
         }
-        #chat-window { /*聊天視窗*/
-            height: 300px; /* 增加高度 */
-            /*border: 3px solid #FFFFFF; 邊框#e0e0e0*/
-			scrollbar-color: white transparent; /*卷軸顏色*/
+        #chat-window { 
+            height: 300px; 
+            scrollbar-color: white transparent; 
             overflow-y: scroll; 
             padding: 15px; 
             margin-bottom: 20px; 
-            background-color: transparent; /* 聊天視窗背景透明 */
+            background-color: transparent; 
             border-radius: 10px;
         }
         h2 {
-            color: #000; /* 標題主題色#1a56db */
-            border-bottom: 2px solid #e0e0e0; /*下分隔線#e0e0e0*/
+            color: #000; 
+            border-bottom: 2px solid #e0e0e0; 
             padding-bottom: 10px;
             margin-top: 0;
             font-weight: 600;
         }
+
+        /* --- 訊息氣泡樣式 --- */
         .message { 
             margin-bottom: 15px; 
             padding: 12px 18px; 
             border-radius: 20px;
             max-width: 80%;
             line-height: 1.6;
+            word-wrap: break-word;
         }
-        .user { /*使用者泡泡*/
+        .user { 
             text-align: right; 
-            background-color: rgba(0,0,0,0.4); /* 使用者淺藍色#e3f2fd */
-			backdrop-filter: blur(5px);
-            color: #FFF; /*文字 #0d47a1*/
+            background-color: rgba(0,0,0,0.4); 
+            backdrop-filter: blur(5px);
+            color: #FFF; 
             margin-left: auto;
-            border-bottom-right-radius: 4px; /* 對話泡泡圓角 */
-			border: 1px solid #FFF;
+            border-bottom-right-radius: 4px; 
+            border: 1px solid #FFF;
         }
-        .assistant { /*AI泡泡*/
+        .assistant { 
             text-align: left; 
-            background-color: rgba(0,0,0,0.4); /* AI淺綠色#f1f8e9 */
-			backdrop-filter: blur(5px);
-            color: #FFF; /*文字#33691e*/
-            margin-right: auto;
-            border-bottom-left-radius: 4px;/* 對話泡泡圓角 */
-			border: 1px solid #FFF;
+            background-color: rgba(0,0,0,0.4); 
+            backdrop-filter: blur(5px);
+            color: #FFF; 
+            margin-right: auto; 
+            border-bottom-left-radius: 4px;
+            border: 1px solid #FFF;
         }
-        textarea { /*輸入區*/
+
+        /* --- 輸入區與按鈕樣式 --- */
+        textarea { 
             width: 100%; 
             padding: 12px; 
-			background-color: rgba(0,0,0,0.4);
-			color: #FFF;
-			backdrop-filter: blur(5px);
+            background-color: rgba(0,0,0,0.4);
+            color: #FFF;
+            backdrop-filter: blur(5px);
             box-sizing: border-box; 
-            resize: none; /* 禁止垂直縮放 */
+            resize: none; 
             border: 3px solid #FFF;
-            /*border-radius: 8px;*/
             margin-bottom: 10px;
             font-size: 1em;
+            outline: none;
+        }
+        textarea::placeholder {
+            color: rgba(255,255,255,0.6);
+        }
+
+        .chat-control-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn-main-group {
+            display: flex;
+            gap: 10px;
         }
         button { 
             padding: 10px 20px; 
@@ -90,166 +106,322 @@
             border-radius: 8px; 
             color: white; 
             font-weight: 500;
-            margin-right: 15px;
-            transition: background-color 0.3s, opacity 0.3s;
+            transition: all 0.3s;
         }
-        .chat-btn-group button:first-child { 
-            background-color: #1a56db; /* 藍色 */
+        #send-btn { background-color: #1a56db; }
+        #send-btn:hover:not(:disabled) { background-color: #1545b8; }
+        
+        #voice-btn { 
+            background-color: #4b5563; 
+            font-size: 1.2em;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
         }
-        .chat-btn-group button:first-child:hover:not(:disabled) { 
-            background-color: #1545b8; 
+        #voice-btn.recording {
+            background-color: #ef4444; 
+            animation: pulse 1.5s infinite;
         }
-        .chat-btn-group button:last-child { 
-            background-color: #f97316; /* 橘色 */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
-        .chat-btn-group button:last-child:hover:not(:disabled) { 
-            background-color: #e56000;
-        }
+
+        #reset-btn { background-color: #f97316; }
+        #reset-btn:hover { background-color: #e56000; }
+
         button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
         }
-        #reset-status {
+
+        /* --- 自動發送切換開關樣式 --- */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #FFF;
             font-size: 0.9em;
             font-weight: bold;
+            background: rgba(255,255,255,0.15);
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #4b5563;
+            transition: .4s;
+            border-radius: 20px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px; width: 14px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #1a56db; }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        #status-msg {
+            font-size: 0.9em;
+            font-weight: bold;
+            color: #FFF;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
 
-    <!-- 聊天容器 -->
     <div id="chat-container">
-        <!-- AI 人物的名稱會顯示在標題中 -->
         <h2 id="chat-title">💬 與 江原醫生 對話</h2>
         
-        <!-- 對話視窗 -->
         <div id="chat-window"></div>
         
-        <!-- 使用者輸入框 -->
-        <textarea id="user-input" rows="4" placeholder="在此輸入您的問題... (按下 Enter 發送)" 
+        <textarea id="user-input" rows="4" placeholder="在此輸入問題或點擊麥克風說話..." 
             onkeydown="if(event.key === 'Enter' && !event.shiftKey) { sendMessage(); event.preventDefault(); }"></textarea>
         
-        <!-- 按鈕組 -->
-        <div class="chat-btn-group">
-            <button onclick="sendMessage()">發送訊息</button>
-            <button onclick="resetChat()">重置對話</button>
+        <div class="chat-control-group">
+            <div class="btn-main-group">
+                <button id="voice-btn" onclick="toggleVoiceInput()" title="語音輸入">🎤</button>
+                <button id="send-btn" onclick="sendMessage()">發送訊息</button>
+                <button id="reset-btn" onclick="resetChat()">重置對話</button>
+            </div>
+
+            <!-- 語音自動發送切換開關 -->
+            <div class="toggle-container">
+                <span>自動發送</span>
+                <label class="switch">
+                    <input type="checkbox" id="auto-send-toggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
         </div>
         
-        <!-- 狀態訊息 -->
-        <p id="reset-status"></p>
+        <p id="status-msg"></p>
     </div>
 
     <script>
-        // 🚨 這是唯一的配置點：請修改這裡的 AI_PERSONA_ID
+        /**
+         * 🚨 配置區
+         */
         const AI_PERSONA_ID = "doctor_ikeshima"; 
-
-        // 🚨 這是您的 Worker 基礎 URL，請確認其正確性。
         const WORKER_URL = "https://history-agent.idcllab702.workers.dev";
+        const CHAT_ENDPOINT = `${WORKER_URL}/api/chat/${AI_PERSONA_ID}`;
+        const STORAGE_KEY = `chat_history_${AI_PERSONA_ID}`;
 
-        let conversationHistory = []; // 用於儲存對話歷史
+        let conversationHistory = []; // 儲存對話陣列
+        let recognition = null;       // 語音辨識實例
+        let isRecording = false;      // 錄音狀態標記
 
-        // *** 核心修正點 1: 新增人物 ID 與顯示名稱的對照表 ***
         const personaNames = {
             'doctor_ikeshima': '江原醫生',
-			'doctor_lin': '林鵬飛醫生',
+            'doctor_lin': '林鵬飛醫生',
             'doctor_hsu': '許讀醫生',
-            'doctor_wu': '吳平城醫生',
-            // 如果您有更多人物，請在此處擴充
+            'doctor_wu': '吳平城醫生'
         };
 
-        // --- 輔助函數 ---
+        /**
+         * 🎤 語音辨識初始化 (Web Speech API)
+         */
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = false; // 偵測到停頓即停止
+            recognition.lang = 'zh-TW';     // 語系：繁體中文
+            recognition.interimResults = false;
 
-        /** 獲取聊天 API URL */
-        function getChatEndpoint(personaId) {
-            return `${WORKER_URL}/api/chat/${personaId}`;
+            // 錄音開始事件
+            recognition.onstart = () => {
+                isRecording = true;
+                updateStatus("正在聆聽中...", "white");
+                document.getElementById('voice-btn').classList.add('recording');
+            };
+
+            // 辨識結果回傳事件
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                const userInput = document.getElementById('user-input');
+                const autoSendEnabled = document.getElementById('auto-send-toggle').checked;
+
+                userInput.value = transcript;
+                updateStatus("辨識完成", "lightgreen");
+                
+                // 🚀 核心邏輯：判斷是否自動發送
+                if (autoSendEnabled) {
+                    updateStatus("自動發送中...", "lightgreen");
+                    sendMessage(); 
+                } else {
+                    updateStatus("請確認文字後手動發送", "white");
+                }
+            };
+
+            // 辨識錯誤處理
+            recognition.onerror = (event) => {
+                console.error("語音辨識錯誤:", event.error);
+                updateStatus("語音辨識失敗: " + event.error, "#ff9999");
+                stopRecordingUI();
+            };
+
+            // 錄音結束事件
+            recognition.onend = () => {
+                stopRecordingUI();
+            };
+        } else {
+            document.getElementById('voice-btn').style.display = 'none';
+            console.warn("此瀏覽器不支援語音辨識。");
         }
 
-        /** 顯示訊息到聊天窗口 */
-        function displayMessage(role, content) {
+        /**
+         * 切換語音錄音狀態
+         */
+        function toggleVoiceInput() {
+            if (!recognition) return;
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+
+        /**
+         * 重置錄音按鈕 UI
+         */
+        function stopRecordingUI() {
+            isRecording = false;
+            document.getElementById('voice-btn').classList.remove('recording');
+        }
+
+        /**
+         * 顯示狀態提示訊息
+         */
+        function updateStatus(text, color) {
+            const statusMsg = document.getElementById('status-msg');
+            statusMsg.textContent = text;
+            statusMsg.style.color = color;
+            if (text) {
+                setTimeout(() => { if(statusMsg.textContent === text) statusMsg.textContent = ''; }, 3000);
+            }
+        }
+
+        /**
+         * 初始載入：從 LocalStorage 恢復對話歷史
+         */
+        function initChat() {
+            const savedHistory = localStorage.getItem(STORAGE_KEY);
+            if (savedHistory) {
+                try {
+                    conversationHistory = JSON.parse(savedHistory);
+                    conversationHistory.forEach(msg => displayToUI(msg.role, msg.content));
+                } catch (e) {
+                    console.error("無法載入對話紀錄", e);
+                    conversationHistory = [];
+                }
+            }
+        }
+
+        /**
+         * 將訊息呈現於畫面上 (不存入紀錄)
+         */
+        function displayToUI(role, content) {
             const chatWindow = document.getElementById('chat-window');
             const msgDiv = document.createElement('div');
             msgDiv.className = `message ${role}`;
             
-            // *** 核心修正點 2: 根據角色使用正確的名稱 ***
-            let speakerName;
-            if (role === 'user') {
-                speakerName = '';/*使用者名稱 您*/
-            } else {
-                // AI (assistant) 使用對照表中的中文名稱，如果找不到則使用 ID (作為備用)
-                speakerName = personaNames[AI_PERSONA_ID] || AI_PERSONA_ID; 
-            }
-            // *** 修正點結束 ***
+            let speakerName = (role === 'user') ? '' : (personaNames[AI_PERSONA_ID] || AI_PERSONA_ID);
+            const nameHtml = speakerName ? `<strong>${speakerName}：</strong> ` : '';
             
-            msgDiv.innerHTML = `<strong>${speakerName}：</strong> ${content.replace(/\n/g, '<br>')}`;
+            msgDiv.innerHTML = `${nameHtml}${content.replace(/\n/g, '<br>')}`;
             chatWindow.appendChild(msgDiv);
-            chatWindow.scrollTop = chatWindow.scrollHeight; // 滾動到底部
+            chatWindow.scrollTop = chatWindow.scrollHeight;
         }
 
-        /** 發送訊息並呼叫 Worker API */
+        /**
+         * 顯示訊息並持久化儲存到 LocalStorage
+         */
+        function displayAndPersist(role, content) {
+            displayToUI(role, content);
+            conversationHistory.push({ role, content });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(conversationHistory));
+        }
+
+        /**
+         * 發送訊息核心函數
+         */
         async function sendMessage() {
             const userInput = document.getElementById('user-input');
             const userContent = userInput.value.trim();
             if (!userContent) return;
 
-            const chatEndpoint = getChatEndpoint(AI_PERSONA_ID);
-            
-            // 禁用輸入，防止重複發送
+            const sendBtn = document.getElementById('send-btn');
             userInput.disabled = true;
-            document.querySelector('.chat-btn-group button:first-child').disabled = true;
+            sendBtn.disabled = true;
 
-            displayMessage('user', userContent);
-            conversationHistory.push({ role: "user", content: userContent });
+            // 1. 本地顯示與儲存
+            displayAndPersist('user', userContent);
             userInput.value = '';
 
-            const payload = { messages: conversationHistory };
-
             try {
-                const response = await fetch(chatEndpoint, { 
+                // 2. 向 Worker API 發送 POST 請求
+                const response = await fetch(CHAT_ENDPOINT, { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({ messages: conversationHistory })
                 });
-
+                
                 const data = await response.json();
-
+                
                 if (response.ok) {
-                    const assistantResponse = data.response;
-                    displayMessage('assistant', assistantResponse);
-                    conversationHistory.push({ role: "assistant", content: assistantResponse });
+                    // 3. 儲存 AI 回應
+                    displayAndPersist('assistant', data.response);
                 } else {
-                    displayMessage('assistant', `[Worker 錯誤 (${response.status}): ${data.error || data.details || '未知錯誤'}]`);
+                    displayToUI('assistant', `[錯誤: ${data.error || '無法取得回應'}]`);
                 }
-
             } catch (error) {
-                console.error("Fetch 錯誤:", error);
-                displayMessage('assistant', 
-                    `[網路錯誤：無法連線。請確認 Worker URL: ${chatEndpoint} 正確且 Worker 已部署。]`);
+                console.error("API 請求失敗:", error);
+                displayToUI('assistant', `[連線錯誤：請確認網路狀態]`);
             } finally {
-                // 重新啟用輸入
                 userInput.disabled = false;
-                document.querySelector('.chat-btn-group button:first-child').disabled = false;
-                userInput.focus(); // 讓游標回到輸入框
+                sendBtn.disabled = false;
+                userInput.focus();
             }
         }
 
-        /** 清除對話歷史 */
+        /**
+         * 重置對話與清除本地儲存
+         */
         function resetChat() {
+            if (!confirm("確定要重置所有對話紀錄嗎？")) return;
             conversationHistory = [];
+            localStorage.removeItem(STORAGE_KEY);
             document.getElementById('chat-window').innerHTML = '';
-            
-            const resetStatus = document.getElementById('reset-status');
-            resetStatus.style.color = 'green';
-            resetStatus.textContent = "✅ 對話歷史已重置！您可以開始新對話。";
-            
-            setTimeout(() => { resetStatus.textContent = ''; }, 3000);
+            updateStatus("✅ 對話紀錄已重置", "white");
         }
 
-        // --- 初始化 ---
-        document.addEventListener('DOMContentLoaded', () => {
-             // 確保聊天標題與配置的人物一致
-             const displayName = personaNames[AI_PERSONA_ID] || AI_PERSONA_ID;
-             document.getElementById('chat-title').textContent = `💬 與 ${displayName} 對話`;
-        });
+        /**
+         * 頁面載入初始化
+         */
+        window.onload = () => {
+            initChat();
+            const displayName = personaNames[AI_PERSONA_ID] || AI_PERSONA_ID;
+            document.getElementById('chat-title').textContent = `💬 與 ${displayName} 對話`;
+        };
     </script>
 </body>
 </html>
