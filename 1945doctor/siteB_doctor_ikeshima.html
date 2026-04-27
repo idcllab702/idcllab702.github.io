@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>江原醫生 - 語音模式切換版</title>
+    <title>江原醫生 - 對話紀錄存檔版</title>
     <style>
-        /* --- 基礎佈局與玻璃擬態樣式 --- */
+        /* --- 基礎佈局與玻璃擬態樣式 (保留原樣) --- */
         body { 
             font-family: "Microsoft JhengHei", Arial, sans-serif; 
             display: flex; 
@@ -86,6 +86,34 @@
         }
         textarea::placeholder {
             color: rgba(255,255,255,0.6);
+        }
+
+        /* --- 下載與編碼輸入區 --- */
+        .log-control-panel {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        #user-number-input {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid #FFF;
+            color: #FFF;
+            padding: 8px;
+            border-radius: 6px;
+            width: 120px;
+            outline: none;
+        }
+        #download-btn {
+            background-color: #059669; /* 綠色 */
+        }
+        #download-btn:hover {
+            background-color: #047857;
         }
 
         .chat-control-group {
@@ -204,7 +232,7 @@
                 <button id="reset-btn" onclick="resetChat()">重置對話</button>
             </div>
 
-            <!-- 語音自動發送切換開關 -->
+            <!-- 語習自動發送切換開關 -->
             <div class="toggle-container">
                 <span>自動發送</span>
                 <label class="switch">
@@ -212,6 +240,12 @@
                     <span class="slider"></span>
                 </label>
             </div>
+        </div>
+
+        <!-- 🧪 新增：Log 管理面板 -->
+        <div class="log-control-panel">
+            <input type="text" id="user-number-input" placeholder="受測編號">
+            <button id="download-btn" onclick="downloadChatLog()">📁 下載對話 Log (CSV)</button>
         </div>
         
         <p id="status-msg"></p>
@@ -226,7 +260,7 @@
         const CHAT_ENDPOINT = `${WORKER_URL}/api/chat/${AI_PERSONA_ID}`;
         const STORAGE_KEY = `chat_history_${AI_PERSONA_ID}`;
 
-        let conversationHistory = []; // 儲存對話陣列
+        let conversationHistory = []; // 儲存對話陣列 { role, content, timestamp }
         let recognition = null;       // 語音辨識實例
         let isRecording = false;      // 錄音狀態標記
 
@@ -243,18 +277,16 @@
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
-            recognition.continuous = false; // 偵測到停頓即停止
-            recognition.lang = 'zh-TW';     // 語系：繁體中文
+            recognition.continuous = false;
+            recognition.lang = 'zh-TW';
             recognition.interimResults = false;
 
-            // 錄音開始事件
             recognition.onstart = () => {
                 isRecording = true;
                 updateStatus("正在聆聽中...", "white");
                 document.getElementById('voice-btn').classList.add('recording');
             };
 
-            // 辨識結果回傳事件
             recognition.onresult = (event) => {
                 const transcript = event.results[0][0].transcript;
                 const userInput = document.getElementById('user-input');
@@ -263,7 +295,6 @@
                 userInput.value = transcript;
                 updateStatus("辨識完成", "lightgreen");
                 
-                // 🚀 核心邏輯：判斷是否自動發送
                 if (autoSendEnabled) {
                     updateStatus("自動發送中...", "lightgreen");
                     sendMessage(); 
@@ -272,25 +303,17 @@
                 }
             };
 
-            // 辨識錯誤處理
             recognition.onerror = (event) => {
                 console.error("語音辨識錯誤:", event.error);
                 updateStatus("語音辨識失敗: " + event.error, "#ff9999");
                 stopRecordingUI();
             };
 
-            // 錄音結束事件
             recognition.onend = () => {
                 stopRecordingUI();
             };
-        } else {
-            document.getElementById('voice-btn').style.display = 'none';
-            console.warn("此瀏覽器不支援語音辨識。");
         }
 
-        /**
-         * 切換語音錄音狀態
-         */
         function toggleVoiceInput() {
             if (!recognition) return;
             if (isRecording) {
@@ -300,17 +323,11 @@
             }
         }
 
-        /**
-         * 重置錄音按鈕 UI
-         */
         function stopRecordingUI() {
             isRecording = false;
             document.getElementById('voice-btn').classList.remove('recording');
         }
 
-        /**
-         * 顯示狀態提示訊息
-         */
         function updateStatus(text, color) {
             const statusMsg = document.getElementById('status-msg');
             statusMsg.textContent = text;
@@ -337,7 +354,7 @@
         }
 
         /**
-         * 將訊息呈現於畫面上 (不存入紀錄)
+         * 將訊息呈現於畫面上
          */
         function displayToUI(role, content) {
             const chatWindow = document.getElementById('chat-window');
@@ -354,10 +371,18 @@
 
         /**
          * 顯示訊息並持久化儲存到 LocalStorage
+         * 修正：新增時間戳記紀錄
          */
         function displayAndPersist(role, content) {
+            const now = new Date();
+            const timestamp = now.toLocaleString('zh-TW'); // 格式: 2024/10/27 15:30:22
+            
             displayToUI(role, content);
-            conversationHistory.push({ role, content });
+            conversationHistory.push({ 
+                role, 
+                content, 
+                timestamp 
+            });
             localStorage.setItem(STORAGE_KEY, JSON.stringify(conversationHistory));
         }
 
@@ -373,22 +398,22 @@
             userInput.disabled = true;
             sendBtn.disabled = true;
 
-            // 1. 本地顯示與儲存
             displayAndPersist('user', userContent);
             userInput.value = '';
 
             try {
-                // 2. 向 Worker API 發送 POST 請求
+                // 發送給 AI 時，傳遞目前的歷史紀錄（不含時間戳記以符合原本 API）
+                const apiMessages = conversationHistory.map(m => ({ role: m.role, content: m.content }));
+
                 const response = await fetch(CHAT_ENDPOINT, { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ messages: conversationHistory })
+                    body: JSON.stringify({ messages: apiMessages })
                 });
                 
                 const data = await response.json();
                 
                 if (response.ok) {
-                    // 3. 儲存 AI 回應
                     displayAndPersist('assistant', data.response);
                 } else {
                     displayToUI('assistant', `[錯誤: ${data.error || '無法取得回應'}]`);
@@ -404,19 +429,65 @@
         }
 
         /**
-         * 重置對話與清除本地儲存
+         * 📁 下載對話紀錄 (CSV)
+         */
+        function downloadChatLog() {
+            if (conversationHistory.length === 0) {
+                updateStatus("❌ 目前沒有可下載的對話紀錄", "#ff9999");
+                return;
+            }
+
+            const userNum = document.getElementById('user-number-input').value.trim() || "None";
+            const now = new Date();
+            
+            // 格式化檔名需要的日期
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+            
+            const fileName = `${yyyy}${mm}${dd}-${hh}${min}_${userNum}.csv`;
+
+            // 建立 CSV 內容
+            // 欄位: 時間, 角色, 內容
+            let csvContent = "\ufeff時間,說話方,對話內容\n"; // \ufeff 是為了讓 Excel 正確識別 UTF-8
+
+            conversationHistory.forEach(msg => {
+                const speaker = (msg.role === 'user') ? "受測者" : (personaNames[AI_PERSONA_ID] || AI_PERSONA_ID);
+                
+                // 處理對話內容中的逗號與引號轉義
+                const sanitizedContent = `"${msg.content.replace(/"/g, '""')}"`;
+                
+                csvContent += `${msg.timestamp},${speaker},${sanitizedContent}\n`;
+            });
+
+            // 觸發下載
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            updateStatus(`✅ 已導出檔案: ${fileName}`, "lightgreen");
+        }
+
+        /**
+         * 重置對話
          */
         function resetChat() {
-            if (!confirm("確定要重置所有對話紀錄嗎？")) return;
+            if (!confirm("確定要重置所有對話紀錄嗎？（建議重置前先下載 Log）")) return;
             conversationHistory = [];
             localStorage.removeItem(STORAGE_KEY);
             document.getElementById('chat-window').innerHTML = '';
             updateStatus("✅ 對話紀錄已重置", "white");
         }
 
-        /**
-         * 頁面載入初始化
-         */
         window.onload = () => {
             initChat();
             const displayName = personaNames[AI_PERSONA_ID] || AI_PERSONA_ID;
