@@ -56,7 +56,7 @@
             color: #ad1457; 
             margin-right: auto;
         }
-        textarea, select { 
+        textarea, select, input[type="text"] { 
             width: 100%; 
             padding: 12px; 
             box-sizing: border-box; 
@@ -105,37 +105,50 @@
         #prompt-status {
             font-size: 0.9em;
         }
+
+        /* 新增：Log 管理面板樣式 */
+        .log-control-panel {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .log-control-panel input {
+            width: 150px;
+            margin-bottom: 0;
+        }
+        #download-btn {
+            background-color: #10b981; /* 綠色 */
+            margin-top: 0;
+        }
+        #download-btn:hover { background-color: #059669; }
     </style>
 </head>
 <body>
 
-    <!-- 提示詞調校面板 (A 網站獨有) -->
     <div id="prompt-panel">
         <h2>💊 提示詞管理 (A 網站專用)</h2>
         
         <label for="persona-id-select" class="persona-label">👤 選擇 AI 人物 (KV Key):</label>
-        <!-- 下拉選單替換 -->
         <select id="persona-id-select" onchange="updateNotesAndTitle(this.value); resetChat();">
-            <option value="doctor_ikeshima" selected>doctor_ikeshima</option>
-			<!--<option value="doctor_lin" selected>doctor_lin</option>
-            <option value="doctor_wu">doctor_wu</option>
-            <option value="doctor_hsu">doctor_hsu</option>-->
+            <option value="doctor_ebara" selected>doctor_ebara</option>
             <option value="system_prompt_history_person">system_prompt_history_person</option>
         </select>
         
-        <p class="prompt-desc" id="persona-notes">doctor_ikeshima是池島（陳纂地）醫生。</p>
-		<p><a href="AImodel.html">AI模型表</a></p>
-		
-        <!-- === 新增 AI 服務模型名稱欄位 START === -->
+        <p class="prompt-desc" id="persona-notes">doctor_ebara是江原（陳纂地）醫生。</p>
+        <p><a href="AImodel.html">AI模型表</a></p>
+        
         <label for="model-input" class="persona-label" style="margin-top: 10px;">🤖 AI 服務模型名稱:</label>
         <input type="text" id="model-input" value="@cf/google/gemma-3-12b-it" 
                placeholder="請輸入 Workers AI 模型名稱，例如 @cf/meta/llama-3-8b-instruct">
-        <!-- === 新增 AI 服務模型名稱欄位 END === -->		
 
         <label for="prompt-input" class="persona-label" style="margin-top: 10px;">📜 系統提示詞內容:</label>
         <textarea id="prompt-input" rows="15" placeholder="請先點擊「讀取目前提示詞」按鈕載入內容。此處顯示的是當前人物在 KV 中的提示詞。"></textarea>
 
-        <!-- 新增讀取按鈕 -->
         <button id="prompt-load-btn" onclick="loadPrompt()">🔄 讀取目前提示詞</button>
         <button id="prompt-save-btn" onclick="savePrompt()" disabled>💾 保存/更新提示詞</button>
         
@@ -146,61 +159,65 @@
         </p>
     </div>
 
-    <!-- 聊天面板 -->
     <div id="chat-panel">
         <h2 id="chat-title">💬 與 AI 人物 對話</h2>
         <div id="chat-window"></div>
         <textarea id="user-input" rows="3" placeholder="在此輸入您的問題..." onkeydown="if(event.key === 'Enter' && !event.shiftKey) { sendMessage(); event.preventDefault(); }"></textarea>
+        
         <div class="chat-btn-group">
             <button onclick="sendMessage()">發送訊息</button>
             <button onclick="resetChat()">重置對話</button>
         </div>
-        <!-- 用於顯示重置成功的訊息 -->
+
+        <div class="log-control-panel">
+            <input type="text" id="user-number-input" placeholder="受測編號 (例如 A01)">
+            <button id="download-btn" onclick="downloadChatLog()">📁 下載對話 Log (CSV)</button>
+        </div>
+
         <p id="reset-status" style="color: green; margin-top: 10px; font-weight: bold;"></p>
     </div>
-	
-	
 
     <script>
         // 🚨 這是您的 Worker 基礎 URL，請再次確認其正確性。
         const WORKER_URL = "https://history-agent.idcllab702.workers.dev";
-        let conversationHistory = []; // 用於儲存對話歷史
+        let conversationHistory = []; // 用於儲存對話歷史 (包含時間戳記)
 
         const personaDescriptions = {
-            doctor_ikeshima: "doctor_ikeshima是神靖丸的班長池島醫生",
-			//doctor_wu: "doctor_wu 是神靖丸倖存者吳平城醫生。",
-            //doctor_hsu: "doctor_hsu 是鹿港長源醫院許讀醫生。",
-            //doctor_lin: "doctor_lin 是霧峰民生診所林鵬飛醫生。",
+            doctor_ebara: "doctor_ebara是神靖丸的班長陳纂地醫生",
             system_prompt_history_person: "這是測試用人物，用於快速驗證 Worker 連線。"
         };
 
         // --- 輔助函數 ---
 
-        /** 取得目前選擇的人物 ID */
         function getPersonaId() {
             return document.getElementById('persona-id-select').value.trim();
         }
 
-        /** 獲取聊天 API URL */
         function getChatEndpoint(personaId) {
             return `${WORKER_URL}/api/chat/${personaId}`;
         }
 
-        /** 獲取管理 API URL (讀取或保存都使用此 URL) */
         function getAdminEndpoint(personaId) {
             return `${WORKER_URL}/api/admin/prompt/${personaId}`;
         }
 
-        /** 更新聊天窗口的標題和備註 */
         function updateNotesAndTitle(personaId) {
             document.getElementById('chat-title').textContent = `💬 與 AI 人物 ${personaId} 對話`;
             document.getElementById('persona-notes').textContent = personaDescriptions[personaId] || "無相關備註。";
         }
 
-        /** 更新按鈕狀態 */
         function updatePromptButtonState(canSave) {
             document.getElementById('prompt-save-btn').disabled = !canSave;
             document.getElementById('prompt-load-btn').disabled = false;
+        }
+
+        function setStatusMessage(text, color) {
+            const statusEl = document.getElementById('reset-status');
+            statusEl.textContent = text;
+            statusEl.style.color = color;
+            if (text) {
+                setTimeout(() => { if(statusEl.textContent === text) statusEl.textContent = ''; }, 3000);
+            }
         }
 
         // --- 核心功能：讀取 KV 提示詞 ---
@@ -213,56 +230,40 @@
 
             loadBtn.disabled = true;
             statusElement.textContent = `正在讀取人物 ${personaId} 的提示詞...`;
-            statusElement.style.color = '#FFA500'; // 橙色表示等待
+            statusElement.style.color = '#FFA500';
 
             try {
-                const endpointUrl = getAdminEndpoint(personaId);
-                const response = await fetch(endpointUrl, {
-                    method: 'GET', // 這裡必須是 GET 請求
+                const response = await fetch(getAdminEndpoint(personaId), {
+                    method: 'GET',
                     headers: { 'Content-Type': 'application/json' }
                 });
                 
-                let data;
-                
                 if (response.ok) {
-                    // 成功時，嘗試解析 JSON
-                    try {
-                        data = await response.json();
-                    } catch (e) {
-                        // 處理 Worker 成功返回但內容不是 JSON 的邊緣情況
-                        throw new Error("Worker 成功回應，但內容無法解析為 JSON。");
-                    }
-                    
-                    // 假設成功時，Worker 返回的 JSON 結構中包含 prompt 字段
+                    const data = await response.json();
                     const systemPrompt = data.prompt || data.response; 
 
                     if (systemPrompt) {
                         promptInput.value = systemPrompt;
-                        statusElement.textContent = `✅ 提示詞讀取成功！時間: ${new Date().toLocaleTimeString('zh-TW')}。現在可以修改並保存。`;
+                        statusElement.textContent = `✅ 提示詞讀取成功！時間: ${new Date().toLocaleTimeString('zh-TW')}`;
                         statusElement.style.color = 'green';
-                        updatePromptButtonState(true); // 啟用保存按鈕
+                        updatePromptButtonState(true);
                     } else {
-                        throw new Error("Worker 返回的資料結構中缺少提示詞內容 (prompt/response 字段)。");
+                        throw new Error("Worker 返回的資料結構中缺少提示詞內容。");
                     }
                 } else {
-                    // 失敗時，讀取錯誤文本以獲得詳細資訊
                     const errorText = await response.text();
-                    // 拋出更具體、有助於 Worker 除錯的錯誤
-                    // *** 修正：在錯誤訊息中明確包含請求的 URL ***
-                    throw new Error(`Worker 錯誤 (${response.status} ${response.statusText}): 請求 URL: ${endpointUrl}。伺服器回應: ${errorText.substring(0, 100)}... (請確認 Worker 已實作 GET 請求)`);
+                    throw new Error(`Worker 錯誤 (${response.status})`);
                 }
             } catch (error) {
                 console.error("Load Prompt Error:", error);
-                // 顯示從 Worker 取得的詳細錯誤訊息
                 statusElement.textContent = `❌ 讀取失敗: ${error.message}`;
                 statusElement.style.color = 'red';
-                promptInput.value = ""; // 清空輸入框
-                updatePromptButtonState(false); // 禁用保存按鈕
+                promptInput.value = "";
+                updatePromptButtonState(false);
             } finally {
                 loadBtn.disabled = false;
             }
         }
-
 
         // --- 提示詞管理功能 (保存) ---
 
@@ -270,9 +271,7 @@
             const promptInput = document.getElementById('prompt-input');
             const newPrompt = promptInput.value.trim();
             const statusElement = document.getElementById('prompt-status');
-            
             const personaId = getPersonaId();
-            const adminEndpoint = getAdminEndpoint(personaId); 
 
             if (!newPrompt) {
                 statusElement.textContent = "提示詞內容不能為空！";
@@ -283,8 +282,8 @@
             statusElement.style.color = '#FFA500'; 
             
             try {
-                const response = await fetch(adminEndpoint, {
-                    method: 'POST', // 保存使用 POST 請求
+                const response = await fetch(getAdminEndpoint(personaId), {
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ newPrompt: newPrompt })
                 });
@@ -292,14 +291,13 @@
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    statusElement.textContent = `✅ 提示詞保存成功！人物 ID: ${personaId}。時間: ${new Date().toLocaleTimeString('zh-TW')}`;
+                    statusElement.textContent = `✅ 提示詞保存成功！時間: ${new Date().toLocaleTimeString('zh-TW')}`;
                     statusElement.style.color = 'green';
-                    resetChat(); // 建議重置對話以使用新提示詞
+                    resetChat();
                 } else {
                     statusElement.textContent = `❌ 保存失敗: ${data.details || data.message || '未知錯誤'}`;
                     statusElement.style.color = 'red';
                 }
-
             } catch (error) {
                 statusElement.textContent = `❌ 網路錯誤：無法連線到 Worker Admin 接口。`;
                 statusElement.style.color = 'red';
@@ -308,79 +306,119 @@
 
         // --- 聊天功能 ---
 
-        /** 顯示訊息到聊天窗口 */
-        function displayMessage(role, content) {
+        /** 顯示訊息到聊天窗口並將紀錄推入陣列 */
+        function displayMessageAndLog(role, content) {
             const chatWindow = document.getElementById('chat-window');
             const msgDiv = document.createElement('div');
             msgDiv.className = `message ${role}`;
             
-            // 根據角色顯示不同的名稱
             let speakerName = role === 'user' ? '您' : getPersonaId();
-            
             msgDiv.innerHTML = `<strong>${speakerName}：</strong> ${content.replace(/\n/g, '<br>')}`;
+            
             chatWindow.appendChild(msgDiv);
-            chatWindow.scrollTop = chatWindow.scrollHeight; // 滾動到底部
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+
+            // 紀錄時間與對話，用於 CSV 下載
+            conversationHistory.push({
+                role: role,
+                content: content,
+                timestamp: new Date().toLocaleString('zh-TW')
+            });
         }
 
         /** 發送訊息並呼叫 Worker API */
         async function sendMessage() {
             const userInput = document.getElementById('user-input');
-			const modelInput = document.getElementById('model-input'); // 取得新的模型輸入
-			
+            const modelInput = document.getElementById('model-input');
             const userContent = userInput.value.trim();
-            const customModelName = modelInput.value.trim(); // 取得模型名稱
-			
+            const customModelName = modelInput.value.trim();
+            
             if (!userContent) return;
 
             const personaId = getPersonaId();
             const chatEndpoint = getChatEndpoint(personaId);
 
-            displayMessage('user', userContent);
-            conversationHistory.push({ role: "user", content: userContent });
+            displayMessageAndLog('user', userContent);
             userInput.value = '';
 
-            const payload = { messages: conversationHistory };
+            // 🚨 核心防呆：過濾掉 timestamp，只傳送 role 與 content 給 Cloudflare AI
+            const apiMessages = conversationHistory.map(msg => ({ 
+                role: msg.role, 
+                content: msg.content 
+            }));
 
             try {
                 const response = await fetch(chatEndpoint, { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({ messages: apiMessages })
                 });
 
                 const data = await response.json();
 
                 if (response.ok) {
-                    const assistantResponse = data.response;
-                    displayMessage('assistant', assistantResponse);
-                    conversationHistory.push({ role: "assistant", content: assistantResponse });
+                    displayMessageAndLog('assistant', data.response);
                 } else {
-                    displayMessage('assistant', `[Worker 錯誤 (${response.status}): ${data.error || data.details || '未知錯誤'}]`);
+                    displayMessageAndLog('assistant', `[Worker 錯誤 (${response.status}): ${data.error || '未知錯誤'}]`);
                 }
-
             } catch (error) {
                 console.error("Fetch 錯誤:", error);
-                displayMessage('assistant', 
-                    `[網路錯誤：無法連線。請確認 Worker URL: ${chatEndpoint} 正確且 Worker 已部署。]`);
+                displayMessageAndLog('assistant', `[網路錯誤：無法連線。]`);
             }
+        }
+
+        // --- 下載 CSV 功能 ---
+        function downloadChatLog() {
+            if (conversationHistory.length === 0) {
+                setStatusMessage("❌ 目前沒有可下載的對話紀錄", "red");
+                return;
+            }
+
+            const userNum = document.getElementById('user-number-input').value.trim() || "None";
+            const now = new Date();
+            
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+            
+            const fileName = `${yyyy}${mm}${dd}-${hh}${min}_${userNum}.csv`;
+
+            // \ufeff 防止 Excel 開啟時產生亂碼
+            let csvContent = "\ufeff時間,說話方,對話內容\n";
+
+            conversationHistory.forEach(msg => {
+                const speaker = (msg.role === 'user') ? "受測者" : getPersonaId();
+                const sanitizedContent = `"${msg.content.replace(/"/g, '""')}"`;
+                csvContent += `${msg.timestamp},${speaker},${sanitizedContent}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            setStatusMessage(`✅ 已導出檔案: ${fileName}`, "green");
         }
 
         /** 清除對話歷史 */
         function resetChat() {
             conversationHistory = [];
             document.getElementById('chat-window').innerHTML = '';
-            
-            const resetStatus = document.getElementById('reset-status');
-            resetStatus.textContent = "✅ 對話歷史已重置！您可以開始新對話。";
-            
-            setTimeout(() => { resetStatus.textContent = ''; }, 3000);
+            setStatusMessage("✅ 對話歷史已重置！您可以開始新對話。", "green");
         }
 
         // --- 初始化 ---
         document.addEventListener('DOMContentLoaded', () => {
             const initialId = getPersonaId();
             updateNotesAndTitle(initialId);
-            // 確保一開始保存按鈕是禁用的
             document.getElementById('prompt-save-btn').disabled = true;
         });
     </script>
