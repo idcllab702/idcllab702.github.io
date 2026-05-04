@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>江原醫生 - 對話紀錄存檔版</title>
+    <style>
+        /* --- 基礎佈局與玻璃擬態樣式 (保留原樣) --- */
+        body { 
+            font-family: "Microsoft JhengHei", Arial, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: flex-start; 
+            min-height: 100vh;
+            background-color: transparent; 
+            backdrop-filter: blur(5px);
+            padding: 20px;
+            margin: 0;
+        }
+        #chat-container { 
+            width: 100%;
+            max-width: 800px; 
+            padding: 30px; 
+            background-color: transparent; 
+            backdrop-filter: blur(5px);
+            border-radius: 16px;
+        }
+        #chat-window { 
+            height: 300px; 
+            scrollbar-color: white transparent; 
+            overflow-y: scroll; 
+            padding: 15px; 
+            margin-bottom: 20px; 
+            background-color: transparent; 
+            border-radius: 10px;
+        }
+        h2 {
+            color: #000; 
+            border-bottom: 2px solid #e0e0e0; 
+            padding-bottom: 10px;
+            margin-top: 0;
+            font-weight: 600;
+        }
+
+        /* --- 訊息氣泡樣式 --- */
+        .message { 
+            margin-bottom: 15px; 
+            padding: 12px 18px; 
+            border-radius: 20px;
+            max-width: 80%;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+        .user { 
+            text-align: right; 
+            background-color: rgba(0,0,0,0.4); 
+            backdrop-filter: blur(5px);
+            color: #FFF; 
+            margin-left: auto;
+            border-bottom-right-radius: 4px; 
+            border: 1px solid #FFF;
+        }
+        .assistant { 
+            text-align: left; 
+            background-color: rgba(0,0,0,0.4); 
+            backdrop-filter: blur(5px);
+            color: #FFF; 
+            margin-right: auto; 
+            border-bottom-left-radius: 4px;
+            border: 1px solid #FFF;
+        }
+
+        /* --- 輸入區與按鈕樣式 --- */
+        textarea { 
+            width: 100%; 
+            padding: 12px; 
+            background-color: rgba(0,0,0,0.4);
+            color: #FFF;
+            backdrop-filter: blur(5px);
+            box-sizing: border-box; 
+            resize: none; 
+            border: 3px solid #FFF;
+            margin-bottom: 10px;
+            font-size: 1em;
+            outline: none;
+        }
+        textarea::placeholder {
+            color: rgba(255,255,255,0.6);
+        }
+
+        /* --- 下載與編碼輸入區 --- */
+        .log-control-panel {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        #user-number-input {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid #FFF;
+            color: #FFF;
+            padding: 8px;
+            border-radius: 6px;
+            width: 120px;
+            outline: none;
+        }
+        #download-btn {
+            background-color: #059669; /* 綠色 */
+        }
+        #download-btn:hover {
+            background-color: #047857;
+        }
+
+        .chat-control-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn-main-group {
+            display: flex;
+            gap: 10px;
+        }
+        button { 
+            padding: 10px 20px; 
+            cursor: pointer; 
+            border: none; 
+            border-radius: 8px; 
+            color: white; 
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        #send-btn { background-color: #1a56db; }
+        #send-btn:hover:not(:disabled) { background-color: #1545b8; }
+        
+        #voice-btn { 
+            background-color: #4b5563; 
+            font-size: 1.2em;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        #voice-btn.recording {
+            background-color: #ef4444; 
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        #reset-btn { background-color: #f97316; }
+        #reset-btn:hover { background-color: #e56000; }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* --- 自動發送切換開關樣式 --- */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #FFF;
+            font-size: 0.9em;
+            font-weight: bold;
+            background: rgba(255,255,255,0.15);
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #4b5563;
+            transition: .4s;
+            border-radius: 20px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px; width: 14px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #1a56db; }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        #status-msg {
+            font-size: 0.9em;
+            font-weight: bold;
+            color: #FFF;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="chat-container">
+        <h2 id="chat-title">💬 與 江原醫生 對話</h2>
+        
+        <div id="chat-window"></div>
+        
+        <textarea id="user-input" rows="4" placeholder="在此輸入問題或點擊麥克風說話..." 
+            onkeydown="if(event.key === 'Enter' && !event.shiftKey) { sendMessage(); event.preventDefault(); }"></textarea>
+        
+        <div class="chat-control-group">
+            <div class="btn-main-group">
+                <button id="voice-btn" onclick="toggleVoiceInput()" title="語音輸入">🎤</button>
+                <button id="send-btn" onclick="sendMessage()">發送訊息</button>
+                <button id="reset-btn" onclick="resetChat()">重置對話</button>
+            </div>
+
+            <!-- 語習自動發送切換開關 -->
+            <div class="toggle-container">
+                <span>自動發送</span>
+                <label class="switch">
+                    <input type="checkbox" id="auto-send-toggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- 🧪 新增：Log 管理面板 -->
+        <div class="log-control-panel">
+            <input type="text" id="user-number-input" placeholder="受測編號">
+            <button id="download-btn" onclick="downloadChatLog()">📁 下載對話 Log (CSV)</button>
+        </div>
+        
+        <p id="status-msg"></p>
+    </div>
+
+    <script>
+        /**
+         * 🚨 配置區
+         */
+        const AI_PERSONA_ID = "doctor_ikeshima"; 
+        const WORKER_URL = "https://history-agent.idcllab702.workers.dev";
+        const CHAT_ENDPOINT = `${WORKER_URL}/api/chat/${AI_PERSONA_ID}`;
+        const STORAGE_KEY = `chat_history_${AI_PERSONA_ID}`;
+
+        let conversationHistory = []; // 儲存對話陣列 { role, content, timestamp }
+        let recognition = null;       // 語音辨識實例
+        let isRecording = false;      // 錄音狀態標記
+
+        const personaNames = {
+            'doctor_ikeshima': '江原醫生',
+            'doctor_miyabayashi': '宮林醫生',
+            'doctor_kurehara': '吳原醫生'
+        };
+
+        /**
+         * 🎤 語音辨識初始化 (Web Speech API)
+         */
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'zh-TW';
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                isRecording = true;
+                updateStatus("正在聆聽中...", "white");
+                document.getElementById('voice-btn').classList.add('recording');
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                const userInput = document.getElementById('user-input');
+                const autoSendEnabled = document.getElementById('auto-send-toggle').checked;
+
+                userInput.value = transcript;
+                updateStatus("辨識完成", "lightgreen");
+                
+                if (autoSendEnabled) {
+                    updateStatus("自動發送中...", "lightgreen");
+                    sendMessage(); 
+                } else {
+                    updateStatus("請確認文字後手動發送", "white");
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.error("語音辨識錯誤:", event.error);
+                updateStatus("語音辨識失敗: " + event.error, "#ff9999");
+                stopRecordingUI();
+            };
+
+            recognition.onend = () => {
+                stopRecordingUI();
+            };
+        }
+
+        function toggleVoiceInput() {
+            if (!recognition) return;
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+
+        function stopRecordingUI() {
+            isRecording = false;
+            document.getElementById('voice-btn').classList.remove('recording');
+        }
+
+        function updateStatus(text, color) {
+            const statusMsg = document.getElementById('status-msg');
+            statusMsg.textContent = text;
+            statusMsg.style.color = color;
+            if (text) {
+                setTimeout(() => { if(statusMsg.textContent === text) statusMsg.textContent = ''; }, 3000);
+            }
+        }
+
+        /**
+         * 初始載入：從 LocalStorage 恢復對話歷史
+         */
+        function initChat() {
+            const savedHistory = localStorage.getItem(STORAGE_KEY);
+            if (savedHistory) {
+                try {
+                    conversationHistory = JSON.parse(savedHistory);
+                    conversationHistory.forEach(msg => displayToUI(msg.role, msg.content));
+                } catch (e) {
+                    console.error("無法載入對話紀錄", e);
+                    conversationHistory = [];
+                }
+            }
+        }
+
+        /**
+         * 將訊息呈現於畫面上
+         */
+        function displayToUI(role, content) {
+            const chatWindow = document.getElementById('chat-window');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${role}`;
+            
+            let speakerName = (role === 'user') ? '' : (personaNames[AI_PERSONA_ID] || AI_PERSONA_ID);
+            const nameHtml = speakerName ? `<strong>${speakerName}：</strong> ` : '';
+            
+            msgDiv.innerHTML = `${nameHtml}${content.replace(/\n/g, '<br>')}`;
+            chatWindow.appendChild(msgDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        /**
+         * 顯示訊息並持久化儲存到 LocalStorage
+         * 修正：新增時間戳記紀錄
+         */
+        function displayAndPersist(role, content) {
+            const now = new Date();
+            const timestamp = now.toLocaleString('zh-TW'); // 格式: 2024/10/27 15:30:22
+            
+            displayToUI(role, content);
+            conversationHistory.push({ 
+                role, 
+                content, 
+                timestamp 
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(conversationHistory));
+        }
+
+        /**
+         * 發送訊息核心函數
+         */
+        async function sendMessage() {
+            const userInput = document.getElementById('user-input');
+            const userContent = userInput.value.trim();
+            if (!userContent) return;
+
+            const sendBtn = document.getElementById('send-btn');
+            userInput.disabled = true;
+            sendBtn.disabled = true;
+
+            displayAndPersist('user', userContent);
+            userInput.value = '';
+
+            try {
+                // 發送給 AI 時，傳遞目前的歷史紀錄（不含時間戳記以符合原本 API）
+                const apiMessages = conversationHistory.map(m => ({ role: m.role, content: m.content }));
+
+                const response = await fetch(CHAT_ENDPOINT, { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messages: apiMessages })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayAndPersist('assistant', data.response);
+                } else {
+                    displayToUI('assistant', `[錯誤: ${data.error || '無法取得回應'}]`);
+                }
+            } catch (error) {
+                console.error("API 請求失敗:", error);
+                displayToUI('assistant', `[連線錯誤：請確認網路狀態]`);
+            } finally {
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                userInput.focus();
+            }
+        }
+
+        /**
+         * 📁 下載對話紀錄 (CSV)
+         */
+        function downloadChatLog() {
+            if (conversationHistory.length === 0) {
+                updateStatus("❌ 目前沒有可下載的對話紀錄", "#ff9999");
+                return;
+            }
+
+            const userNum = document.getElementById('user-number-input').value.trim() || "None";
+            const now = new Date();
+            
+            // 格式化檔名需要的日期
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+            
+            const fileName = `${yyyy}${mm}${dd}-${hh}${min}_${userNum}.csv`;
+
+            // 建立 CSV 內容
+            // 欄位: 時間, 角色, 內容
+            let csvContent = "\ufeff時間,說話方,對話內容\n"; // \ufeff 是為了讓 Excel 正確識別 UTF-8
+
+            conversationHistory.forEach(msg => {
+                const speaker = (msg.role === 'user') ? "受測者" : (personaNames[AI_PERSONA_ID] || AI_PERSONA_ID);
+                
+                // 處理對話內容中的逗號與引號轉義
+                const sanitizedContent = `"${msg.content.replace(/"/g, '""')}"`;
+                
+                csvContent += `${msg.timestamp},${speaker},${sanitizedContent}\n`;
+            });
+
+            // 觸發下載
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            updateStatus(`✅ 已導出檔案: ${fileName}`, "lightgreen");
+        }
+
+        /**
+         * 重置對話
+         */
+        function resetChat() {
+            if (!confirm("確定要重置所有對話紀錄嗎？（建議重置前先下載 Log）")) return;
+            conversationHistory = [];
+            localStorage.removeItem(STORAGE_KEY);
+            document.getElementById('chat-window').innerHTML = '';
+            updateStatus("✅ 對話紀錄已重置", "white");
+        }
+
+        window.onload = () => {
+            initChat();
+            const displayName = personaNames[AI_PERSONA_ID] || AI_PERSONA_ID;
+            document.getElementById('chat-title').textContent = `💬 與 ${displayName} 對話`;
+        };
+    </script>
+</body>
+</html>
