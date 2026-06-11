@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>江原醫生 - 對話紀錄存檔版</title>
+    <title>AI人物對話</title>
     <style>
         /* --- 基礎佈局與玻璃擬態樣式 (保留原樣) --- */
         body { 
@@ -24,15 +24,17 @@
             background-color: transparent; 
             backdrop-filter: blur(5px);
             border-radius: 16px;
+			/*border: 1px solid #e0e0e0;*/
         }
         #chat-window { 
-            height: 300px; 
+            height: 460px; 
             scrollbar-color: white transparent; 
             overflow-y: scroll; 
             padding: 15px; 
             margin-bottom: 20px; 
             background-color: transparent; 
             border-radius: 10px;
+			border: 1px solid #e0e0e0;
         }
         h2 {
             color: #000; 
@@ -172,7 +174,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            color: #FFF;
+            color: #000;
             font-size: 0.9em;
             font-weight: bold;
             background: rgba(255,255,255,0.15);
@@ -213,43 +215,71 @@
             color: #FFF;
             margin-top: 10px;
         }
+		#container {
+		display: flex; /* 啟用 Flexbox 排版 */
+		gap: 20px;     /* 兩欄之間的間距 */
+		}
+
+		#portrait {
+		width: 300px;  /* 側邊欄設定固定寬度 */
+		height: 100%;
+		overflow: hidden;
+		display: flex;
+		justify-content: center; /* 讓圖片在容器內水平置中 */
+		align-items: center;    /* 讓圖片在容器內垂直置中 */
+		}
+		
+
+		#mainchat {
+		width: 800px;
+		flex: 1;       /* 主內容區塊自動填滿剩餘空間 */
+		}
     </style>
 </head>
 <body>
-
-    <div id="chat-container">
-        <h2 id="chat-title">💬 與 江原醫生 對話</h2>
+	<div id="container">
+		<div id="portrait">
+			<img src="ebara-portrait.png" alt="AI agent portrait">
+		</div>
+		<div id="mainchat">
+		<div id="chat-container">
+					<!-- <h4 id="chat-title">與他對話</h4>-->
         
-        <div id="chat-window"></div>
+					<div id="chat-window"></div>
         
-        <textarea id="user-input" rows="4" placeholder="在此輸入問題或點擊麥克風說話..." 
+						<textarea id="user-input" rows="2" placeholder="在此輸入問題或點擊麥克風說話..." 
             onkeydown="if(event.key === 'Enter' && !event.shiftKey) { sendMessage(); event.preventDefault(); }"></textarea>
         
-        <div class="chat-control-group">
+					<div class="chat-control-group">
             <div class="btn-main-group">
-                <button id="voice-btn" onclick="toggleVoiceInput()" title="語音輸入">🎤</button>
-                <button id="send-btn" onclick="sendMessage()">發送訊息</button>
-                <button id="reset-btn" onclick="resetChat()">重置對話</button>
+				<button id="send-btn" onclick="sendMessage()">發送訊息</button>
+                                <button id="reset-btn" onclick="resetChat()">重置對話</button>
             </div>
 
-            <!-- 語習自動發送切換開關 -->
+            <!-- 語習自動發送切換開關 
             <div class="toggle-container">
-                <span>自動發送</span>
+				<button id="voice-btn" onclick="toggleVoiceInput()" title="語音輸入">🎤</button>
+                <span>語音自動輸入</span>
                 <label class="switch">
                     <input type="checkbox" id="auto-send-toggle" checked>
                     <span class="slider"></span>
                 </label>
-            </div>
+            </div>-->
         </div>
 
         <!-- 🧪 新增：Log 管理面板 -->
         <div class="log-control-panel">
             <input type="text" id="user-number-input" placeholder="受測編號">
-            <button id="download-btn" onclick="downloadChatLog()">📁 下載對話 Log (CSV)</button>
+            <button id="download-btn" onclick="downloadChatLog()">📁下載對話（CSV）</button>
+			<span>版本v0.1.0</span>
         </div>
         
         <p id="status-msg"></p>
     </div>
+		</div>
+	</div>
+
+
 
     <script>
         /**
@@ -265,7 +295,7 @@
         let isRecording = false;      // 錄音狀態標記
 
         const personaNames = {
-            'doctor_ikeshima': '江原醫生',
+            'doctor_ikeshima': '他',
             'doctor_miyabayashi': '宮林醫生',
             'doctor_kurehara': '吳原醫生'
         };
@@ -450,10 +480,10 @@
 
             // 建立 CSV 內容
             // 欄位: 時間, 角色, 內容
-            let csvContent = "\ufeff時間,說話方,對話內容\n"; // \ufeff 是為了讓 Excel 正確識別 UTF-8
+            let csvContent = "\ufeffTime,Speaker,Messsages\n"; // \ufeff 是為了讓 Excel 正確識別 UTF-8
 
             conversationHistory.forEach(msg => {
-                const speaker = (msg.role === 'user') ? "受測者" : (personaNames[AI_PERSONA_ID] || AI_PERSONA_ID);
+                const speaker = (msg.role === 'user') ? "User" : (personaNames[AI_PERSONA_ID] || AI_PERSONA_ID);
                 
                 // 處理對話內容中的逗號與引號轉義
                 const sanitizedContent = `"${msg.content.replace(/"/g, '""')}"`;
