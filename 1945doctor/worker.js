@@ -1,4 +1,4 @@
-// version 0.1.2(20260630)
+// version 0.1.3(20260630) - Fixed Gemma 4 response parsing
 // --- 1. 全局配置和 CORS 標頭 ---
 
 // CORS 標頭，允許所有來源進行跨域存取
@@ -9,6 +9,48 @@ const corsHeaders = {
     "Access-Control-Allow-Headers": "Content-Type, Authorization", 
 };
 
+// ✅ 新增：支援的 AI 模型白名單
+// Mistral: 傳統 response.response 格式
+// Gemma 4: OpenAI 相容格式 (response.choices[0].message.content)
+// Llama 3.3: OpenAI 相容格式
+const ALLOWED_MODELS = new Set([
+    "@cf/mistralai/mistral-small-3.1-24b-instruct",
+    "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    "@cf/google/gemma-4-26b-a4b-it",
+]);
+
+/**
+ * ✅ 新增：標準化 AI 回應文本提取
+ * 支援多種 AI 模型的回應格式
+ * @param {Object} aiResult - AI_BINDING.run() 的回應物件
+ * @param {string} modelName - 使用的模型名稱（用於除錯）
+ * @returns {string|null} - 提取的助手文本，若無法提取則返回 null
+ */
+function extractAssistantText(aiResult, modelName) {
+    if (!aiResult) return null;
+
+    // 策略 1：嘗試舊版 Workers AI 格式 (Mistral)
+    if (aiResult.response && typeof aiResult.response === 'string') {
+        return aiResult.response;
+    }
+
+    // 策略 2：嘗試 OpenAI 相容格式 (Gemma 4, Llama 3.3)
+    if (aiResult.choices && Array.isArray(aiResult.choices) && aiResult.choices.length > 0) {
+        const firstChoice = aiResult.choices[0];
+        if (firstChoice.message && typeof firstChoice.message.content === 'string') {
+            return firstChoice.message.content;
+        }
+    }
+
+    // 策略 3：嘗試其他可能的格式 (多模型回應)
+    if (aiResult.description && typeof aiResult.description === 'string') {
+        return aiResult.description;
+    }
+
+    // 無法提取：記錄頂層鍵供除錯
+    console.warn(`[extractAssistantText] 無法從模型 ${modelName} 提取文本。回應結構鍵值: ${Object.keys(aiResult || {}).join(', ')}`);
+    return null;
+}
 
 /**
  * 驗證 Admin API 請求是否帶有正確的 Bearer Token
@@ -102,6 +144,18 @@ async function handleChatRequest(request, env) {
         // 決定要使用的模型名稱 (如果前端未提供，則使用預設值)
         const modelToUse = dynamicModelName || DEFAULT_MODEL;
 
+        // ✅ 新增：驗證模型是否在允許清單中
+        if (!ALLOWED_MODELS.has(modelToUse)) {
+            console.error(`Model Validation Failed: ${modelToUse} is not in the allowed list.`);
+            return new Response(JSON.stringify({ 
+                error: "Model Not Allowed",
+                details: `模型 ${modelToUse} 不在允許清單中。允許的模型: ${Array.from(ALLOWED_MODELS).join(', ')}`
+            }), { 
+                status: 400,
+                headers: { ...corsHeaders, "Content-Type": "application/json" } 
+            });
+        }
+
         // 從 KV 讀取系統提示詞 (Key 現在是動態的 personaId)
         const systemPrompt = await env.History_AI_CONFIG.get(PROMPT_KV_KEY);
 
@@ -130,7 +184,20 @@ async function handleChatRequest(request, env) {
             { messages }
         );
 
-        const assistantResponse = response.response;
+        // ✅ 修正：使用標準化的回應提取函數
+        const assistantResponse = extractAssistantText(response, modelToUse);
+
+        // ✅ 新增：如果無法提取文本，返回有意義的錯誤而不是空 {}
+        if (!assistantResponse) {
+            console.error(`Response Extraction Failed for model ${modelToUse}. Raw response keys: ${Object.keys(response || {}).join(', ')}`);
+            return new Response(JSON.stringify({
+                error: "AI response format not recognized",
+                details: `模型 ${modelToUse} 返回了無法解析的回應格式。`
+            }), {
+                status: 502,
+                headers: { ...corsHeaders, "Content-Type": "application/json" }
+            });
+        }
 
         // 5. 返回結果
         return new Response(JSON.stringify({ response: assistantResponse }), {
