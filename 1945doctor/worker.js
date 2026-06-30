@@ -1,3 +1,4 @@
+// version 0.1.2(20260630)
 // --- 1. 全局配置和 CORS 標頭 ---
 
 // CORS 標頭，允許所有來源進行跨域存取
@@ -5,8 +6,20 @@ const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     // 關鍵修正: Admin API 現在需要支援 GET 請求來讀取提示詞
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS", 
-    "Access-Control-Allow-Headers": "Content-Type", 
+    "Access-Control-Allow-Headers": "Content-Type, Authorization", 
 };
+
+
+/**
+ * 驗證 Admin API 請求是否帶有正確的 Bearer Token
+ * @param {Request} request
+ * @param {Env} env
+ * @returns {boolean}
+ */
+function isAdminAuthorized(request, env) {
+    const auth = request.headers.get("Authorization");
+    return Boolean(env.ADMIN_API_KEY) && auth === `Bearer ${env.ADMIN_API_KEY}`;
+}
 
 
 // --- 2. CORS 預檢處理函數 ---
@@ -154,6 +167,16 @@ async function handleChatRequest(request, env) {
  * @returns {Response}
  */
 async function handleAdminRequest(request, env) {
+    if (!isAdminAuthorized(request, env)) {
+        return new Response(JSON.stringify({
+            error: "Unauthorized",
+            details: "請提供有效的 Admin API Key（Authorization: Bearer ...）。"
+        }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+    }
+
     const KV_BINDING = env.History_AI_CONFIG; 
 
     try {
