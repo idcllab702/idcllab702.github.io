@@ -271,7 +271,7 @@
         <div class="log-control-panel">
             <input type="text" id="user-number-input" placeholder="受測編號">
             <button id="download-btn" onclick="downloadChatLog()">📁下載對話（CSV）</button>
-			<span>版本v0.1.0</span>
+			<span>版本v0.1.2</span>
         </div>
         
         <p id="status-msg"></p>
@@ -285,8 +285,8 @@
         /**
          * 🚨 配置區
          */
-        const AI_PERSONA_ID = "doctor_ikeshima"; 
-        const WORKER_URL = "https://history-agent.idcllab702.workers.dev";
+        const AI_PERSONA_ID = "doctor_ebara"; 
+        const WORKER_URL = "https://26june.idcllab702.workers.dev";
         const CHAT_ENDPOINT = `${WORKER_URL}/api/chat/${AI_PERSONA_ID}`;
         const STORAGE_KEY = `chat_history_${AI_PERSONA_ID}`;
 
@@ -295,7 +295,7 @@
         let isRecording = false;      // 錄音狀態標記
 
         const personaNames = {
-            'doctor_ikeshima': '他',
+            'doctor_ebara': '他',
             'doctor_miyabayashi': '宮林醫生',
             'doctor_kurehara': '吳原醫生'
         };
@@ -520,7 +520,7 @@
         window.onload = () => {
             initChat();
             const displayName = personaNames[AI_PERSONA_ID] || AI_PERSONA_ID;
-            document.getElementById('chat-title').textContent = `💬 與 ${displayName} 對話`;
+            
         };
     </script>
 </body>
