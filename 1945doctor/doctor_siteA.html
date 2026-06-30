@@ -136,6 +136,10 @@
 
     <div id="prompt-panel">
         <h2>💊 提示詞管理 (A 網站專用)</h2>
+
+        <label for="admin-api-key-input" class="persona-label">🔑 Admin API Key:</label>
+        <input type="password" id="admin-api-key-input" placeholder="請輸入 Cloudflare ADMIN_API_KEY" autocomplete="off">
+        <p style="font-size: 0.85em; color: #666; margin-top: -5px; margin-bottom: 10px;">僅用於讀取／保存提示詞，不會寫入 HTML 原始碼。</p>
         
         <label for="persona-id-select" class="persona-label">👤 選擇 AI 人物 (KV Key):</label>
         <select id="persona-id-select" onchange="updateNotesAndTitle(this.value); resetChat();">
@@ -183,7 +187,8 @@
 
     <script>
         // 🚨 這是您的 Worker 基礎 URL，請再次確認其正確性。
-        const WORKER_URL = "https://history-agent.idcllab702.workers.dev";
+        const WORKER_URL = "https://26june.idcllab702.workers.dev";
+        const ADMIN_KEY_STORAGE = "admin_api_key";
         let conversationHistory = []; // 用於儲存對話歷史 (包含時間戳記)
 
         const personaDescriptions = {
@@ -203,6 +208,24 @@
 
         function getAdminEndpoint(personaId) {
             return `${WORKER_URL}/api/admin/prompt/${personaId}`;
+        }
+
+        function getAdminApiKey() {
+            const input = document.getElementById('admin-api-key-input');
+            const key = input ? input.value.trim() : '';
+            if (key) {
+                sessionStorage.setItem(ADMIN_KEY_STORAGE, key);
+            }
+            return key || sessionStorage.getItem(ADMIN_KEY_STORAGE) || '';
+        }
+
+        function getAdminHeaders() {
+            const headers = { 'Content-Type': 'application/json' };
+            const key = getAdminApiKey();
+            if (key) {
+                headers['Authorization'] = `Bearer ${key}`;
+            }
+            return headers;
         }
 
         function updateNotesAndTitle(personaId) {
@@ -232,6 +255,12 @@
             const promptInput = document.getElementById('prompt-input');
             const loadBtn = document.getElementById('prompt-load-btn');
 
+            if (!getAdminApiKey()) {
+                statusElement.textContent = "❌ 請先輸入 Admin API Key。";
+                statusElement.style.color = 'red';
+                return;
+            }
+
             loadBtn.disabled = true;
             statusElement.textContent = `正在讀取人物 ${personaId} 的提示詞...`;
             statusElement.style.color = '#FFA500';
@@ -239,9 +268,13 @@
             try {
                 const response = await fetch(getAdminEndpoint(personaId), {
                     method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: getAdminHeaders()
                 });
                 
+                if (response.status === 401) {
+                    throw new Error("Admin API Key 無效或未授權（401）。");
+                }
+
                 if (response.ok) {
                     const data = await response.json();
                     const systemPrompt = data.prompt || data.response; 
@@ -277,6 +310,12 @@
             const statusElement = document.getElementById('prompt-status');
             const personaId = getPersonaId();
 
+            if (!getAdminApiKey()) {
+                statusElement.textContent = "❌ 請先輸入 Admin API Key。";
+                statusElement.style.color = 'red';
+                return;
+            }
+
             if (!newPrompt) {
                 statusElement.textContent = "提示詞內容不能為空！";
                 return;
@@ -288,9 +327,15 @@
             try {
                 const response = await fetch(getAdminEndpoint(personaId), {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAdminHeaders(),
                     body: JSON.stringify({ newPrompt: newPrompt })
                 });
+
+                if (response.status === 401) {
+                    statusElement.textContent = "❌ Admin API Key 無效或未授權（401）。";
+                    statusElement.style.color = 'red';
+                    return;
+                }
 
                 const data = await response.json();
 
@@ -460,6 +505,19 @@ async function sendMessage() {
             const initialId = getPersonaId();
             updateNotesAndTitle(initialId);
             document.getElementById('prompt-save-btn').disabled = true;
+
+            const savedKey = sessionStorage.getItem(ADMIN_KEY_STORAGE);
+            if (savedKey) {
+                document.getElementById('admin-api-key-input').value = savedKey;
+            }
+            document.getElementById('admin-api-key-input').addEventListener('input', (event) => {
+                const value = event.target.value.trim();
+                if (value) {
+                    sessionStorage.setItem(ADMIN_KEY_STORAGE, value);
+                } else {
+                    sessionStorage.removeItem(ADMIN_KEY_STORAGE);
+                }
+            });
         });
     </script>
 </body>
